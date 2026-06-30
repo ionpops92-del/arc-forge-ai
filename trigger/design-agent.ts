@@ -4,6 +4,7 @@ import { generateText, tool } from "ai";
 import { z } from "zod";
 import { LiveObject } from "@liveblocks/client";
 import type { LiveblocksNode, LiveblocksEdge } from "@liveblocks/react-flow";
+import { getGoogleAiApiKey } from "@/lib/ai/google-api-key";
 import { getLiveblocks } from "@/lib/liveblocks";
 import { NODE_COLORS, SHAPE_DEFAULTS, NODE_SHAPES } from "@/types/canvas";
 import type { CanvasNode, CanvasEdge, NodeShape } from "@/types/canvas";
@@ -158,7 +159,7 @@ export const designAgent = task({
   retry: { maxAttempts: 2 },
   run: async (payload: { prompt: string; roomId: string; userId: string }) => {
     const lb = getLiveblocks();
-    const google = createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
+    const google = createGoogleGenerativeAI({ apiKey: getGoogleAiApiKey() });
 
     await lb
       .setPresence(payload.roomId, {

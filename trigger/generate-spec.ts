@@ -3,6 +3,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { generateText } from "ai"
 import { z } from "zod"
 import { put } from "@vercel/blob"
+import { getGoogleAiApiKey } from "@/lib/ai/google-api-key"
 import { prisma } from "@/lib/prisma"
 
 const chatMessageSchema = z.object({
@@ -98,7 +99,7 @@ export const generateSpec = schemaTask({
   schema: payloadSchema,
   retry: { maxAttempts: 2, minTimeoutInMs: 1000, maxTimeoutInMs: 10000, factor: 2 },
   run: async (payload) => {
-    const google = createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_AI_API_KEY })
+    const google = createGoogleGenerativeAI({ apiKey: getGoogleAiApiKey() })
 
     metadata.set("status", "starting")
     logger.info("Generating spec", {
