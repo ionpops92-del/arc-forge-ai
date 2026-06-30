@@ -78,7 +78,7 @@ function RunTracker({ runId, publicToken, onTerminal }: RunTrackerProps) {
     if (!(TERMINAL_STATUSES as readonly string[]).includes(run.status)) return
     firedRef.current = true
     onTerminal(run.status, run.output)
-  }, [run?.status, run?.id, onTerminal])
+  }, [run, onTerminal])
 
   return null
 }
@@ -149,19 +149,27 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const fetchSpecs = useCallback(() => {
+  const fetchSpecs = useCallback(async () => {
+    await Promise.resolve()
     setSpecsLoading(true)
-    fetch(`/api/projects/${projectId}/specs`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: unknown) => setSpecs(Array.isArray(data) ? (data as SpecItem[]) : []))
-      .catch(() => setSpecs([]))
-      .finally(() => setSpecsLoading(false))
+    try {
+      const res = await fetch(`/api/projects/${projectId}/specs`)
+      const data: unknown = res.ok ? await res.json() : []
+      setSpecs(Array.isArray(data) ? (data as SpecItem[]) : [])
+    } catch {
+      setSpecs([])
+    } finally {
+      setSpecsLoading(false)
+    }
   }, [projectId])
 
   // Fetch specs when sidebar opens
   useEffect(() => {
     if (!isOpen) return
-    fetchSpecs()
+    const timeoutId = window.setTimeout(() => {
+      void fetchSpecs()
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
   }, [isOpen, fetchSpecs])
 
   const handleSpecRunTerminal = useCallback(
@@ -169,7 +177,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
       setIsSpecGenerating(false)
       setSpecRunId(null)
       setSpecPublicToken(null)
-      if (status === "COMPLETED") fetchSpecs()
+      if (status === "COMPLETED") void fetchSpecs()
     },
     [fetchSpecs]
   )

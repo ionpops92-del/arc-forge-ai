@@ -10,6 +10,10 @@
 !.yarn/releases
 !.yarn/versions
 /context/current-issues.md
+
+# Trigger.dev generated output
+.trigger/tmp/
+
 # testing
 /coverage
 
