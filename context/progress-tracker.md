@@ -3,10 +3,10 @@
 Update this file whenever the current phase, active feature, or implementation state changes.
 
 ## Current Phase
-- Internal Auth Foundation — PR #1 is open from `internal-auth-foundation-v1`; implementation and PR follow-up fixes are pushed, local Docker PostgreSQL migration passed, and DB-backed auth smoke tests passed.
+- Local Docker Runtime — PR #2 is open from `local-docker-runtime-v1`; full Docker stack implemented and validated.
 
 ## Current Goal
-- Await PR #1 review/merge.
+- Await PR #2 review/merge for the Docker Desktop Play full local development stack.
 
 ## Completed
 
@@ -44,10 +44,10 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## In Progress
 
-- Awaiting PR #1 review/merge.
+- Local Docker Runtime PR #2 review/merge.
 
 ## Next Up
-- Review PR #1 and plan any separate data migration needed for existing Clerk-owned project rows.
+- Review PR #2, then decide whether to merge. Docker Desktop Play starts PostgreSQL and the Next.js app; local auth/project smoke passed at `http://localhost:3000`.
 
 
 

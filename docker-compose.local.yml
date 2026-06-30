@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: arc-forge-ai-postgres-local
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: arcforge_ai
+      POSTGRES_USER: arcforge
+      POSTGRES_PASSWORD: arcforge
+    volumes:
+      - arc-forge-ai-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arcforge -d arcforge_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app:
+    image: node:22-bookworm-slim
+    container_name: arc-forge-ai-app-local
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public
+      AUTH_SESSION_COOKIE_NAME: arc_forge_session
+      APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - .:/app
+      - arc-forge-ai-node-modules:/app/node_modules
+      - arc-forge-ai-next-cache:/app/.next
+    command: >
+      sh -c "npm install &&
+      npx prisma generate &&
+      npx prisma migrate deploy &&
+      npm run dev -- -H 0.0.0.0 -p 3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/sign-up').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+volumes:
+  arc-forge-ai-postgres-data:
+  arc-forge-ai-node-modules:
+  arc-forge-ai-next-cache:
