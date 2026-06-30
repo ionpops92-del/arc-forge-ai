@@ -3,10 +3,10 @@
 Update this file whenever the current phase, active feature, or implementation state changes.
 
 ## Current Phase
-- Local Docker Runtime — PR #2 is open from `local-docker-runtime-v1`; implemented and validated.
+- Local Docker Runtime — PR #2 is open from `local-docker-runtime-v1`; full Docker stack implemented and validated.
 
 ## Current Goal
-- Await PR #2 review/merge for the Windows-friendly local Docker PostgreSQL development runtime.
+- Await PR #2 review/merge for the Docker Desktop Play full local development stack.
 
 ## Completed
 
@@ -47,7 +47,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Local Docker Runtime PR #2 review/merge.
 
 ## Next Up
-- Review PR #2, then decide whether to merge. Local PostgreSQL started, migration passed, the app started at `http://localhost:3000`, and auth smoke passed.
+- Review PR #2, then decide whether to merge. Docker Desktop Play starts PostgreSQL and the Next.js app; local auth/project smoke passed at `http://localhost:3000`.
 
 
 
