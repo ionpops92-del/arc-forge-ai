@@ -51,7 +51,7 @@ Ghost AI is a real-time collaborative system design workspace. Users describe a 
 
 - AI generates a system design from a user-supplied prompt.
 - Output is structured as canvas nodes and edges written into the shared room.
-- Generation runs as a durable background task.
+- Generation runs as a durable PostgreSQL-backed background task.
 
 ### Spec Generation
 

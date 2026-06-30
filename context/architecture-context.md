@@ -9,13 +9,14 @@
 | Auth             | Internal auth           | User identity, server-side sessions, and route protection      |
 | Database         | Prisma + PostgreSQL     | Relational metadata: projects, collaborators, specs, task runs |
 | Canvas           | Liveblocks + React Flow | Real-time collaborative canvas, presence, and cursors          |
-| Background tasks | Trigger.dev             | Durable AI generation workflows                                |
+| Background tasks | Internal AI task runner | PostgreSQL-backed durable AI generation workflows              |
 | Artifact storage | Vercel Blob             | Canvas snapshots and generated Markdown specs                  |
 
 ## System Boundaries
 
 - `app/api` — Authenticated request handlers: input validation, ownership checks, task triggering, and persistence.
-- `trigger` — Long-running background jobs: AI design generation and spec generation.
+- `lib/ai-tasks` — Long-running background jobs: task leasing, retries, AI design generation, and spec generation.
+- `scripts/ai-worker.ts` — Worker process entrypoint for local and production task execution.
 - `lib` — Shared infrastructure: Prisma client, access control helpers, and utilities.
 - `components` — UI composition: canvas surfaces, sidebars, dialogs, and interactive elements.
 - `prisma` — Database schema and generated client output.
@@ -23,9 +24,9 @@
 
 ## Storage Model
 
-- **Database**: metadata, ownership, relationships, and task run records.
+- **Database**: metadata, ownership, relationships, AI task runs/events/attempts, and project spec records.
 - **Vercel Blob**: generated artifacts — canvas snapshots at `canvas/{projectId}.json` and specs at `specs/{projectId}/{specId}.md`.
-- Project records, spec records, and task run records belong in PostgreSQL.
+- Project records, spec records, and AI task run records belong in PostgreSQL.
 - Canvas content and Markdown output are stored in and retrieved from Vercel Blob.
 - The blob URL is stored in the database (`canvasBlobUrl`, `filePath`) as the reference to the artifact.
 
@@ -52,13 +53,13 @@
 ### Design Generation
 
 - Input: user prompt, project context, and current canvas state.
-- Execution: durable background task via Trigger.dev.
+- Execution: durable background task via the internal PostgreSQL-backed AI task runner.
 - Output: structured node and edge updates written into the shared Liveblocks room.
 
 ### Spec Generation
 
 - Input: current canvas graph and project context.
-- Execution: durable background task via Trigger.dev.
+- Execution: durable background task via the internal PostgreSQL-backed AI task runner.
 - Output: Markdown technical spec saved to Vercel Blob and linked to the project in the database.
 
 ## Invariants
@@ -68,3 +69,4 @@
 3. Auth and ownership are enforced at every mutation boundary.
 4. Client components are used only where browser interactivity or real-time state requires them.
 5. The canvas schema must remain consistent between user-created content and imported templates.
+6. AI workers lease queued tasks from PostgreSQL before execution; API routes only enqueue tasks after auth and project access checks.

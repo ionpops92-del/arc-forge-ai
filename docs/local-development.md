@@ -4,8 +4,9 @@ This setup runs the full local development stack in Docker Compose:
 
 - PostgreSQL on host port `5433`
 - Next.js dev server on `http://localhost:3000`
+- Internal AI worker for queued design/spec tasks
 
-Pressing Play for `docker-compose.local.yml` in Docker Desktop starts both services.
+Pressing Play for `docker-compose.local.yml` in Docker Desktop starts all services.
 
 ## Prerequisites
 
@@ -48,6 +49,8 @@ You can also press Play in Docker Desktop for `docker-compose.local.yml`.
 
 The app container installs dependencies if needed, generates Prisma Client, applies committed migrations with `prisma migrate deploy`, then starts Next.js on `0.0.0.0:3000`.
 
+The worker container waits for the app healthcheck, then starts the internal PostgreSQL-backed AI task runner.
+
 Open:
 
 ```text
@@ -72,6 +75,12 @@ View app logs only:
 
 ```bash
 npm run app:local:logs
+```
+
+View AI worker logs only:
+
+```bash
+npm run worker:local:logs
 ```
 
 ## Stop The Full Stack
@@ -119,7 +128,7 @@ With only the Docker PostgreSQL database and internal auth defaults, you can use
 Full collaborative canvas and AI behavior requires additional keys in `.env.local`:
 
 - `LIVEBLOCKS_SECRET_KEY` for Liveblocks room auth and collaboration.
-- `TRIGGER_SECRET_KEY` and `NEXT_PUBLIC_TRIGGER_PUBLIC_API_KEY` for Trigger.dev run creation and run status.
+- `BLOB_READ_WRITE_TOKEN` for Vercel Blob canvas/spec persistence.
 - `GOOGLE_AI_API_KEY` for Gemini-backed AI design/spec generation.
 
-Without these keys, local auth and database-backed project flows can still be tested, but Liveblocks, Trigger.dev, and Google AI calls will fail when reached.
+Without these keys, local auth and database-backed project flows can still be tested, but Liveblocks, Vercel Blob, and Google AI calls will fail when reached. Missing AI service keys fail individual queued tasks safely without stopping the worker.

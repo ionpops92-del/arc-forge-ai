@@ -16,7 +16,7 @@
 <img src="https://img.shields.io/badge/-PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" />
 <img src="https://img.shields.io/badge/-Internal_Auth-0f766e?style=for-the-badge&logo=nextdotjs&logoColor=white" /><br/>
 
-<img src="https://img.shields.io/badge/Trigger.dev-22c55e?style=for-the-badge&logo=triggerdotdev&logoColor=white" />
+<img src="https://img.shields.io/badge/-Internal_AI_Tasks-22c55e?style=for-the-badge&logo=postgresql&logoColor=white" />
 <img src="https://img.shields.io/badge/-Liveblocks-050505?style=for-the-badge&logo=liveblocks&logoColor=white" />
 <img src="https://img.shields.io/badge/-CodeRabbit-orange?style=for-the-badge&logo=coderabbit&logoColor=white" />
 
@@ -66,7 +66,7 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 - **Internal Authentication** uses server-verified sessions backed by PostgreSQL. Raw session tokens stay in httpOnly cookies, while only hashed tokens and password hashes are stored in the database.
 
-- **[Trigger.dev](https://jsm.dev/ghost-triggerdev)** is an open-source platform for orchestrating long-running background jobs and workflows. It allows developers to define jobs directly in their code that respond to webhooks, schedules, or events, handling retries, delays, and state management without the need for complex infrastructure.
+- **Internal AI Task Runner** is a PostgreSQL-backed worker system for durable AI jobs. API routes enqueue task runs after auth/project checks, and a separate worker leases queued runs, records attempts/events, handles retries, and executes design/spec handlers.
 
 - **[Prisma ORM](https://www.prisma.io/)** is a next-generation ORM for Node.js and TypeScript that simplifies database interactions. By providing a type-safe client generated from your schema, it makes querying your database intuitive, readable, and highly efficient, effectively eliminating common SQL-related runtime errors.
 
@@ -80,21 +80,21 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 ## <a name="features">🔋 Features</a>
 
-👉 **AI Architecture Agent**: Submit a plain-English prompt; Gemini draws nodes and edges onto the live canvas in real-time via Trigger.dev background tasks and the Liveblocks Node.js SDK.
+👉 **AI Architecture Agent**: Submit a plain-English prompt; Gemini draws nodes and edges onto the live canvas in real-time via the internal AI worker and the Liveblocks Node.js SDK.
 
 👉 **Multiplayer Canvas**: Full real-time collaboration powered by Liveblocks: synchronized node/edge state, live cursor positions, and presence avatars for every connected user.
 
 👉 **Custom Canvas Nodes**: Double-click to edit node labels inline; select to resize with NodeResizer; choose from 12 colour swatches via a floating NodeToolbar — all synced across clients instantly.
 
-👉 **AI Spec Generation**: One click converts the current graph into a detailed Markdown technical specification using a second Gemini-powered Trigger.dev task.
+👉 **AI Spec Generation**: One click converts the current graph into a detailed Markdown technical specification using a second Gemini-powered internal task.
 
-👉 **Multi-Spec Storage**: Each project stores multiple specs. Metadata lives in PostgreSQL (Prisma); content is stored as Markdown files on disk (`data/specs/{projectId}/{specId}.md`).
+👉 **Multi-Spec Storage**: Each project stores multiple specs. Metadata lives in PostgreSQL (Prisma); content is stored as Markdown files in Vercel Blob.
 
 👉 **Downloadable Specs**: Every generated spec is available via a dedicated download API route.
 
 👉 **Internal Authentication**: Server-side session checks protect app routes and API routes; Liveblocks tokens are only issued after project access is verified.
 
-👉 **Auto-Save Canvas**: The canvas state is debounced-saved to `data/canvas/{projectId}.json` every 3 seconds of inactivity.
+👉 **Auto-Save Canvas**: The canvas state is debounced-saved to Vercel Blob.
 
 👉 **Project Management**: Create projects from a slide-in sidebar; project slugs auto-generate room IDs; the active room is highlighted.
 
@@ -139,10 +139,8 @@ AUTH_SESSION_COOKIE_NAME=arc_forge_session
 
 LIVEBLOCKS_SECRET_KEY=
 
-TRIGGER_SECRET_KEY=
-NEXT_PUBLIC_TRIGGER_PUBLIC_API_KEY=
-
 DATABASE_URL=
+BLOB_READ_WRITE_TOKEN=
 
 ━━━━━━━━━━━━━━━━━━━━
 # Google
@@ -157,7 +155,7 @@ GEMINI_SPEC_MODEL=
 APP_URL=http://localhost:3000
 ```
 
-Replace the placeholder values with your real credentials. You can get these by signing up at: [**Liveblocks**](https://jsm.dev/ghost-liveblocks), [**Trigger.dev**](https://jsm.dev/ghost-triggerdev), [**Google AI Studio**](https://aistudio.google.com/).
+Replace the placeholder values with your real credentials. You can get these by signing up at: [**Liveblocks**](https://jsm.dev/ghost-liveblocks), [**Vercel Blob**](https://vercel.com/docs/vercel-blob), and [**Google AI Studio**](https://aistudio.google.com/).
 
 **Running the Project**
 
@@ -167,12 +165,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser to view the project.
 
-**Run Trigger.dev (Background Tasks)**
+**Run AI Worker (Background Tasks)**
 
-In a second terminal, start the Trigger.dev dev worker so background AI tasks execute locally:
+In a second terminal, start the internal AI worker so queued AI tasks execute locally:
 
 ```bash
-npx trigger.dev@latest dev
+npm run ai:worker
 ```
 
 ## Available Scripts
@@ -183,6 +181,9 @@ npx trigger.dev@latest dev
 | `npm run build`           | Build for production                  |
 | `npm run start`           | Start production server               |
 | `npm run lint`            | Run ESLint                            |
+| `npm run ai:worker`       | Run the internal AI worker            |
+| `npm run stack:local:up`  | Start local PostgreSQL, app, worker   |
+| `npm run worker:local:logs` | Tail local AI worker logs           |
 | `npm run prisma:generate` | Regenerate Prisma client              |
 | `npm run prisma:migrate`  | Create and apply a new migration      |
 | `npm run prisma:deploy`   | Apply pending migrations (production) |
@@ -203,16 +204,13 @@ npx trigger.dev@latest dev
 ├── components/
 │   ├── editor/           # Canvas UI components (editor, sidebar, AI chat)
 │   └── ui/               # Reusable shadcn/ui primitives
-├── data/
-│   ├── canvas/           # Auto-saved React Flow graph JSON per project
-│   └── specs/            # Generated Markdown specs per project
 ├── docs/                 # Project documentation
 ├── hooks/                # Custom React hooks (auto-save, keyboard shortcuts)
-├── lib/                  # Shared utilities (Prisma client, Liveblocks, AI agents)
+├── lib/                  # Shared utilities (Prisma client, Liveblocks, AI tasks)
+│   └── ai-tasks/         # Internal AI task service, handlers, worker loop
 ├── prisma/               # Prisma schema and migrations
-├── trigger/              # Trigger.dev background task definitions
-│   ├── design-agent.ts   # AI canvas generation task
-│   └── generate-spec-gemini.ts  # AI spec generation task
+├── scripts/
+│   └── ai-worker.ts      # Internal AI worker entrypoint
 └── types/                # Shared TypeScript types
 ```
 

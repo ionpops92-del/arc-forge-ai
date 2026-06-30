@@ -36,7 +36,12 @@ services:
       - arc-forge-ai-node-modules:/app/node_modules
       - arc-forge-ai-next-cache:/app/.next
     command: >
-      sh -c "npm install &&
+      sh -c "set -a &&
+      [ ! -f .env.local ] || . ./.env.local &&
+      set +a &&
+      export DATABASE_URL='postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public' &&
+      export NEXT_TELEMETRY_DISABLED=1 &&
+      npm install &&
       npx prisma generate &&
       npx prisma migrate deploy &&
       npm run dev -- -H 0.0.0.0 -p 3000"
@@ -50,6 +55,32 @@ services:
       timeout: 10s
       retries: 20
       start_period: 30s
+
+  worker:
+    image: node:22-bookworm-slim
+    container_name: arc-forge-ai-worker-local
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public
+      AUTH_SESSION_COOKIE_NAME: arc_forge_session
+      APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - .:/app
+      - arc-forge-ai-node-modules:/app/node_modules
+    command: >
+      sh -c "set -a &&
+      [ ! -f .env.local ] || . ./.env.local &&
+      set +a &&
+      export DATABASE_URL='postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public' &&
+      export NEXT_TELEMETRY_DISABLED=1 &&
+      npm run ai:worker"
 
 volumes:
   arc-forge-ai-postgres-data:

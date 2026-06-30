@@ -1,0 +1,72 @@
+enum AiTaskType {
+  design_agent
+  generate_spec
+}
+
+enum AiTaskStatus {
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+  timed_out
+  retrying
+}
+
+model AiTaskRun {
+  id           String       @id @default(cuid())
+  type         AiTaskType
+  status       AiTaskStatus @default(queued)
+  projectId    String
+  userId       String
+  payloadJson  Json
+  resultJson   Json?
+  errorMessage String?
+  attemptCount Int          @default(0)
+  maxAttempts  Int          @default(2)
+  runAfter     DateTime?
+  leaseUntil   DateTime?
+  heartbeatAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  completedAt  DateTime?
+
+  project  Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events   AiTaskEvent[]
+  attempts AiTaskAttempt[]
+
+  @@index([status, runAfter])
+  @@index([projectId])
+  @@index([userId, projectId])
+  @@index([leaseUntil])
+  @@index([createdAt])
+}
+
+model AiTaskEvent {
+  id        String        @id @default(cuid())
+  taskRunId String
+  type      String
+  status    AiTaskStatus?
+  message   String
+  metadata  Json?
+  createdAt DateTime      @default(now())
+
+  taskRun AiTaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
+
+  @@index([taskRunId, createdAt])
+}
+
+model AiTaskAttempt {
+  id            String    @id @default(cuid())
+  taskRunId     String
+  attemptNumber Int
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  errorMessage  String?
+
+  taskRun AiTaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
+
+  @@unique([taskRunId, attemptNumber])
+  @@index([taskRunId])
+}

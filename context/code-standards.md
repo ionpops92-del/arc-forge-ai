@@ -44,7 +44,8 @@
 ## File Organization
 
 - `lib/` — shared infrastructure: Prisma client, auth helpers, utilities.
-- `trigger/` — all durable background tasks and AI workflows.
+- `lib/ai-tasks/` — durable AI task leasing, handlers, and worker orchestration.
+- `scripts/ai-worker.ts` — AI worker process entrypoint.
 - `components/` — UI composition only; no business logic.
 - `app/api/` — route handlers for auth, triggering, and persistence.
 - Name files after the responsibility they contain, not the technology.
