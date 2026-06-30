@@ -22,25 +22,12 @@ import {
   useSelf,
   useStorage,
 } from "@liveblocks/react"
-import { useRealtimeRun } from "@trigger.dev/react-hooks"
 import { AiStatusFeedMessageSchema, ChatFeedMessageSchema } from "@/types/tasks"
 import { cn } from "@/lib/utils"
+import { isTerminalAiRunStatus, useAiRunStatus } from "@/hooks/use-ai-run-status"
 
 const FEED_ID = "ai-status-feed"
 const CHAT_FEED_ID = "ai-chat"
-
-const TERMINAL_STATUSES = [
-  "COMPLETED",
-  "FAILED",
-  "CANCELED",
-  "CRASHED",
-  "TIMED_OUT",
-  "INTERRUPTED",
-  "SYSTEM_ERROR",
-  "INVALID_PAYLOAD",
-  "EXPIRED",
-  "ABORTED",
-] as const
 
 interface SpecItem {
   id: string
@@ -65,19 +52,18 @@ function formatSpecDate(date: string): string {
 
 interface RunTrackerProps {
   runId: string
-  publicToken: string
   onTerminal: (status: string, output: unknown) => void
 }
 
-function RunTracker({ runId, publicToken, onTerminal }: RunTrackerProps) {
-  const { run } = useRealtimeRun(runId, { accessToken: publicToken })
+function RunTracker({ runId, onTerminal }: RunTrackerProps) {
+  const { run } = useAiRunStatus(runId)
   const firedRef = useRef(false)
 
   useEffect(() => {
     if (!run || firedRef.current) return
-    if (!(TERMINAL_STATUSES as readonly string[]).includes(run.status)) return
+    if (!isTerminalAiRunStatus(run.status)) return
     firedRef.current = true
-    onTerminal(run.status, run.output)
+    onTerminal(run.status, run.resultJson)
   }, [run, onTerminal])
 
   return null
@@ -104,7 +90,6 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [runId, setRunId] = useState<string | null>(null)
-  const [publicToken, setPublicToken] = useState<string | null>(null)
   const [statusText, setStatusText] = useState<string>("")
   const [chatInput, setChatInput] = useState("")
   const [chatError, setChatError] = useState<string | null>(null)
@@ -122,7 +107,6 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
   const [specModalOpen, setSpecModalOpen] = useState(false)
   const [isSpecGenerating, setIsSpecGenerating] = useState(false)
   const [specRunId, setSpecRunId] = useState<string | null>(null)
-  const [specPublicToken, setSpecPublicToken] = useState<string | null>(null)
 
   // Canvas storage for spec generation context
   // useStorage immutably serializes LiveMap as a plain readonly object, so use Object.values
@@ -176,15 +160,14 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
     (status: string) => {
       setIsSpecGenerating(false)
       setSpecRunId(null)
-      setSpecPublicToken(null)
-      if (status === "COMPLETED") void fetchSpecs()
+      if (status === "succeeded") void fetchSpecs()
     },
     [fetchSpecs]
   )
 
   const handleRunTerminal = useCallback(
     (status: string, output: unknown) => {
-      const isSuccess = status === "COMPLETED"
+      const isSuccess = status === "succeeded"
       const typedOutput = output as { summary?: string } | undefined
       const content = isSuccess
         ? (typedOutput?.summary ?? "Design applied to canvas.")
@@ -205,7 +188,6 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
       setIsLoading(false)
       setStatusText("")
       setRunId(null)
-      setPublicToken(null)
       updateMyPresence({ thinking: false })
     },
     [createFeedMessage, updateMyPresence]
@@ -249,16 +231,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
       if (!res.ok) throw new Error("Spec generation failed")
       const { runId: newSpecRunId } = (await res.json()) as { runId: string }
 
-      const tokenRes = await fetch("/api/ai/spec/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ runId: newSpecRunId }),
-      })
-      if (!tokenRes.ok) throw new Error("Token request failed")
-      const { token } = (await tokenRes.json()) as { token: string }
-
       setSpecRunId(newSpecRunId)
-      setSpecPublicToken(token)
     } catch {
       setIsSpecGenerating(false)
     }
@@ -326,18 +299,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
 
       const { runId: newRunId } = (await designRes.json()) as { runId: string }
 
-      const tokenRes = await fetch("/api/ai/design/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ runId: newRunId }),
-      })
-
-      if (!tokenRes.ok) throw new Error("Token request failed")
-
-      const { token } = (await tokenRes.json()) as { token: string }
-
       setRunId(newRunId)
-      setPublicToken(token)
     } catch {
       createFeedMessage(CHAT_FEED_ID, {
         sender: "Ghost AI",
@@ -458,17 +420,15 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
 
   return (
     <>
-      {runId && publicToken && (
+      {runId && (
         <RunTracker
           runId={runId}
-          publicToken={publicToken}
           onTerminal={handleRunTerminal}
         />
       )}
-      {specRunId && specPublicToken && (
+      {specRunId && (
         <RunTracker
           runId={specRunId}
-          publicToken={specPublicToken}
           onTerminal={handleSpecRunTerminal}
         />
       )}

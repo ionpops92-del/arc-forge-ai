@@ -1,8 +1,7 @@
-import { schemaTask, metadata, logger } from "@trigger.dev/sdk/v3"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
+import { put } from "@vercel/blob"
 import { generateText } from "ai"
 import { z } from "zod"
-import { put } from "@vercel/blob"
 import { getGoogleAiApiKey } from "@/lib/ai/google-api-key"
 import { prisma } from "@/lib/prisma"
 
@@ -37,7 +36,7 @@ const edgeSchema = z
   })
   .passthrough()
 
-const payloadSchema = z.object({
+export const GenerateSpecPayloadSchema = z.object({
   projectId: z.string(),
   roomId: z.string(),
   chatHistory: z.array(chatMessageSchema),
@@ -45,16 +44,25 @@ const payloadSchema = z.object({
   edges: z.array(edgeSchema),
 })
 
+export type GenerateSpecPayload = z.infer<typeof GenerateSpecPayloadSchema>
 type Node = z.infer<typeof nodeSchema>
 type Edge = z.infer<typeof edgeSchema>
 type ChatMessage = z.infer<typeof chatMessageSchema>
+
+function requireBlobToken() {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error("Missing Vercel Blob read/write token.")
+  }
+}
 
 function buildContext(nodes: Node[], edges: Edge[], chatHistory: ChatMessage[]): string {
   const nodeLines = nodes
     .map((n) => {
       const label = n.data?.label ?? n.id
       const shape = n.data?.shape ?? "rectangle"
-      const pos = n.position ? ` at (${Math.round(n.position.x)}, ${Math.round(n.position.y)})` : ""
+      const pos = n.position
+        ? ` at (${Math.round(n.position.x)}, ${Math.round(n.position.y)})`
+        : ""
       return `- ${label} (id: ${n.id}, shape: ${shape}${pos})`
     })
     .join("\n")
@@ -62,7 +70,7 @@ function buildContext(nodes: Node[], edges: Edge[], chatHistory: ChatMessage[]):
   const edgeLines = edges
     .map((e) => {
       const label = e.data?.label ? ` [${e.data.label}]` : ""
-      return `- ${e.source} → ${e.target}${label}`
+      return `- ${e.source} -> ${e.target}${label}`
     })
     .join("\n")
 
@@ -85,66 +93,43 @@ function buildContext(nodes: Node[], edges: Edge[], chatHistory: ChatMessage[]):
 const SYSTEM_PROMPT = `You are Ghost AI, a senior technical architect. Generate a comprehensive Markdown technical specification document based on the provided architecture canvas and conversation context.
 
 Structure the spec as follows:
-1. **Overview** — What the system does and its key goals
-2. **Architecture** — High-level architecture description based on the canvas
-3. **Components** — Each node/service with its role and responsibilities
-4. **Data Flow** — How data and requests move through the system
-5. **Technology Choices** — Suggested technologies that fit the architecture
-6. **Key Considerations** — Scalability, security, and performance notes
+1. **Overview** - What the system does and its key goals
+2. **Architecture** - High-level architecture description based on the canvas
+3. **Components** - Each node/service with its role and responsibilities
+4. **Data Flow** - How data and requests move through the system
+5. **Technology Choices** - Suggested technologies that fit the architecture
+6. **Key Considerations** - Scalability, security, and performance notes
 
 Write in clear, professional technical language. Use Markdown headers, bullet points, and code blocks where appropriate. Be specific and actionable.`
 
-export const generateSpec = schemaTask({
-  id: "generate-spec",
-  schema: payloadSchema,
-  retry: { maxAttempts: 2, minTimeoutInMs: 1000, maxTimeoutInMs: 10000, factor: 2 },
-  run: async (payload) => {
-    const google = createGoogleGenerativeAI({ apiKey: getGoogleAiApiKey() })
+export async function runGenerateSpecTask(payload: GenerateSpecPayload) {
+  const googleApiKey = getGoogleAiApiKey()
+  requireBlobToken()
 
-    metadata.set("status", "starting")
-    logger.info("Generating spec", {
+  const google = createGoogleGenerativeAI({ apiKey: googleApiKey })
+  const context = buildContext(payload.nodes, payload.edges, payload.chatHistory)
+
+  const result = await generateText({
+    model: google("gemini-2.5-flash"),
+    system: SYSTEM_PROMPT,
+    prompt: context,
+  })
+
+  const spec = result.text
+
+  const blob = await put(`specs/${payload.projectId}/${Date.now()}.md`, spec, {
+    access: "private",
+    contentType: "text/markdown",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  })
+
+  const record = await prisma.projectSpec.create({
+    data: {
       projectId: payload.projectId,
-      nodeCount: payload.nodes.length,
-      edgeCount: payload.edges.length,
-    })
+      filePath: blob.url,
+    },
+  })
 
-    metadata.set("status", "generating")
-
-    const context = buildContext(payload.nodes, payload.edges, payload.chatHistory)
-
-    const result = await generateText({
-      model: google("gemini-2.5-flash"),
-      system: SYSTEM_PROMPT,
-      prompt: context,
-    })
-
-    const spec = result.text
-
-    metadata.set("status", "uploading")
-
-    const blob = await put(
-      `specs/${payload.projectId}/${Date.now()}.md`,
-      spec,
-      {
-        access: "private",
-        contentType: "text/markdown",
-        addRandomSuffix: false,
-        allowOverwrite: true,
-      }
-    )
-
-    const record = await prisma.projectSpec.create({
-      data: {
-        projectId: payload.projectId,
-        filePath: blob.url,
-      },
-    })
-
-    metadata.set("status", "complete")
-    metadata.set("specLength", spec.length)
-    metadata.set("specId", record.id)
-    logger.info("Spec generated and saved", { length: spec.length, specId: record.id })
-
-    return { spec, specId: record.id }
-  },
-})
+  return { specId: record.id, specLength: spec.length }
+}

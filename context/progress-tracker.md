@@ -3,10 +3,10 @@
 Update this file whenever the current phase, active feature, or implementation state changes.
 
 ## Current Phase
-- Local Docker Runtime — PR #2 is open from `local-docker-runtime-v1`; full Docker stack implemented and validated.
+- Self-Owned Infrastructure Foundation
 
 ## Current Goal
-- Await PR #2 review/merge for the Docker Desktop Play full local development stack.
+- Continue replacing hosted/runtime infrastructure dependencies with internal, PostgreSQL-backed services while preserving the product experience.
 
 ## Completed
 
@@ -40,14 +40,16 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 27 (Spec Generation Flow): app/api/ai/spec/route.ts — POST accepts roomId/chatHistory/nodes/edges, authenticates via Clerk, resolves projectId from roomId using getAccessibleProject (no client-supplied projectId), triggers generate-spec task, creates TaskRun record, returns runId. app/api/ai/spec/token/route.ts — POST accepts runId, verifies TaskRun ownership, issues Trigger.dev public token scoped to that run with 1-hour expiry. trigger/generate-spec.ts — schemaTask (id "generate-spec") with Zod-validated payload (projectId/roomId/chatHistory/nodes/edges); uses Gemini gemini-2.0-flash via @ai-sdk/google generateText to produce a structured Markdown spec from canvas context and chat history; tracks status/specLength in run metadata; returns { spec } as plain Markdown string. `npm run build` passes clean.
 - Feature 29 (Spec UI Integration): GET /api/projects/[projectId]/specs lists specs for a project; GET /api/projects/[projectId]/specs/[specId] returns spec content as text/markdown for preview (not as attachment). ai-sidebar.tsx Specs tab: fetches spec list when sidebar opens, renders clickable compact list with filename/createdAt, download button per item; preview Dialog (base-ui) shows spec content rendered via react-markdown with dark-theme styling; download action creates a temporary anchor to the download endpoint and lets the browser handle the file. react-markdown ^10.1.0 installed. Build clean.
 - Feature 28 (Spec Persistence & Download): ProjectSpec Prisma model added (id, projectId, filePath, createdAt; relation to Project with cascade delete; index on projectId); migration applied and client regenerated. trigger/generate-spec.ts updated to upload generated Markdown to Vercel Blob (specs/{projectId}/{timestamp}.md, private access) and create a ProjectSpec record, returning specId alongside spec. app/api/projects/[projectId]/specs/[specId]/download/route.ts — GET authenticates user, verifies project access via userHasProjectAccess, verifies spec belongs to project, fetches file from Vercel Blob and streams it back as a Markdown attachment (Content-Disposition: attachment). Returns 401/403/404 on error cases. `npm run build` passes clean.
-- Internal Auth Foundation: Clerk runtime usage replaced with internal server-side sessions. Added Prisma auth models/migration for User, PasswordCredential, AuthSession, EmailVerificationToken, and PasswordResetToken. Added auth helpers for password hashing, secure token generation/hashing, httpOnly cookies, session creation/revocation, and current-user lookup. Added `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, and `/api/auth/me`. Project APIs, collaborator lookup, Liveblocks auth, Trigger-backed AI routes, sign-in/sign-up pages, root layout, editor user menu, proxy.ts, README, and package files now use internal auth. `/api/ai/design` now requires authentication, verifies project access, verifies `roomId === project.id`, and creates/triggers tasks only after authorization succeeds. `@clerk/nextjs` and `@clerk/ui` removed; `bcryptjs` and `zod` added. `npx prisma generate`, `npm run lint`, and `npm run build` pass. PR #1 is open for review. Local PostgreSQL migration and DB-backed auth smoke tests passed using a temporary Docker Postgres container.
+- Internal Auth Foundation: Clerk runtime usage replaced with internal server-side sessions. Added Prisma auth models/migration for User, PasswordCredential, AuthSession, EmailVerificationToken, and PasswordResetToken. Added auth helpers for password hashing, secure token generation/hashing, httpOnly cookies, session creation/revocation, and current-user lookup. Added `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, and `/api/auth/me`. Project APIs, collaborator lookup, Liveblocks auth, AI routes, sign-in/sign-up pages, root layout, editor user menu, proxy.ts, README, and package files now use internal auth. `/api/ai/design` now requires authentication, verifies project access, verifies `roomId === project.id`, and creates tasks only after authorization succeeds. `@clerk/nextjs` and `@clerk/ui` removed; `bcryptjs` and `zod` added. `npx prisma generate`, `npm run lint`, and `npm run build` pass. Local PostgreSQL migration and DB-backed auth smoke tests passed using a temporary Docker Postgres container.
+- Local Docker Runtime: Local development runtime starts PostgreSQL and the Next.js app with a persistent PostgreSQL volume, healthchecks, documented `.env.local` setup, Prisma migration flow, and app access at `http://localhost:3000`.
+- Internal AI Task Runner: Trigger.dev runtime dependencies, token routes, config, and task files replaced with PostgreSQL-backed `AiTaskRun`, `AiTaskEvent`, and `AiTaskAttempt` models. AI APIs now enqueue internal tasks after auth/project checks. `scripts/ai-worker.ts` leases queued tasks, records attempts/events, retries with backoff, and dispatches design/spec handlers. Frontend status tracking now polls `/api/ai/runs/[runId]`. Docker local stack includes the worker service. Validation and auth/task smoke tests passed locally.
 
 ## In Progress
 
-- Local Docker Runtime PR #2 review/merge.
+- Internal AI Task Runner — PostgreSQL-backed task runs, worker leasing, retries, run status API, Docker worker service, and frontend polling status.
 
 ## Next Up
-- Review PR #2, then decide whether to merge. Docker Desktop Play starts PostgreSQL and the Next.js app; local auth/project smoke passed at `http://localhost:3000`.
+- Internal realtime collaboration engine design to replace Liveblocks while keeping React Flow as the canvas renderer.
 
 
 
@@ -70,6 +72,6 @@ Update this file whenever the current phase, active feature, or implementation s
 - Clerk packages removed from runtime dependencies. Internal auth currently uses bcryptjs ^3.0.3 for password hashing and zod ^3.25.76 for request validation.
 - @liveblocks/node installed alongside existing @liveblocks/client, @liveblocks/react, @liveblocks/react-flow, @liveblocks/react-ui. Liveblocks client uses lazy init (getLiveblocks()) to avoid key validation errors at build time.
 - @vercel/blob ^2.3.3 installed. BLOB_READ_WRITE_TOKEN set in .env.local.
-- @trigger.dev/sdk ^4.4.4 installed. trigger.config.ts reads project ref from TRIGGER_PROJECT_REF env var. TRIGGER_SECRET_KEY must be set in .env.local for triggering tasks from server code. Run `npx trigger.dev@latest dev` for local development; deploy with `npx trigger.dev@latest deploy`.
+- Trigger.dev runtime packages and config were replaced by the internal PostgreSQL-backed AI task runner.
 - Prisma 7.8.0 — generated client goes to app/generated/prisma/; import PrismaClient from @/app/generated/prisma/client (no index.ts in v7). Constructor always requires { adapter } argument. @prisma/adapter-pg used for all connections.
 - prisma.config.ts uses schema: "prisma/" (multi-file schema) and reads DATABASE_URL from .env via dotenv.

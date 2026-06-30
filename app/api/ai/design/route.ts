@@ -1,8 +1,7 @@
 import { z } from "zod"
-import { prisma } from "@/lib/prisma"
-import { tasks } from "@trigger.dev/sdk/v3"
+import { AiTaskType } from "@/app/generated/prisma/client"
+import { createAiTaskRun } from "@/lib/ai-tasks/task-service"
 import { getAccessibleProject, getCurrentProjectIdentity } from "@/lib/project-access"
-import type { designAgent } from "@/trigger/design-agent"
 
 const DesignRequestSchema = z.object({
   prompt: z.string().trim().min(1),
@@ -32,15 +31,16 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid roomId" }, { status: 400 })
   }
 
-  const handle = await tasks.trigger<typeof designAgent>("design-agent", {
-    prompt,
-    roomId: project.id,
+  const run = await createAiTaskRun({
+    type: AiTaskType.design_agent,
+    projectId: project.id,
     userId: identity.userId,
+    payloadJson: {
+      prompt,
+      roomId: project.id,
+      userId: identity.userId,
+    },
   })
 
-  await prisma.taskRun.create({
-    data: { runId: handle.id, projectId: project.id, userId: identity.userId },
-  })
-
-  return Response.json({ runId: handle.id }, { status: 201 })
+  return Response.json({ runId: run.id }, { status: 201 })
 }

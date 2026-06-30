@@ -1,8 +1,7 @@
-import { prisma } from "@/lib/prisma"
 import { z } from "zod"
-import { tasks } from "@trigger.dev/sdk/v3"
+import { AiTaskType } from "@/app/generated/prisma/client"
+import { createAiTaskRun } from "@/lib/ai-tasks/task-service"
 import { getCurrentProjectIdentity, getAccessibleProject } from "@/lib/project-access"
-import type { generateSpec } from "@/trigger/generate-spec"
 
 const ChatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -59,17 +58,18 @@ export async function POST(request: Request) {
     return Response.json({ error: "Not found" }, { status: 404 })
   }
 
-  const handle = await tasks.trigger<typeof generateSpec>("generate-spec", {
+  const run = await createAiTaskRun({
+    type: AiTaskType.generate_spec,
     projectId: project.id,
-    roomId: project.id,
-    chatHistory,
-    nodes,
-    edges,
+    userId: identity.userId,
+    payloadJson: {
+      projectId: project.id,
+      roomId: project.id,
+      chatHistory,
+      nodes,
+      edges,
+    },
   })
 
-  await prisma.taskRun.create({
-    data: { runId: handle.id, projectId: project.id, userId: identity.userId },
-  })
-
-  return Response.json({ runId: handle.id }, { status: 201 })
+  return Response.json({ runId: run.id }, { status: 201 })
 }

@@ -4,31 +4,21 @@ enum ProjectStatus {
 }
 
 model Project {
-  id             String        @id @default(cuid())
-  ownerId        String
-  name           String
-  description    String?
-  status         ProjectStatus @default(DRAFT)
-  canvasBlobUrl  String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  ownerId       String
+  name          String
+  description   String?
+  status        ProjectStatus @default(DRAFT)
+  canvasBlobUrl String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   collaborators ProjectCollaborator[]
   specs         ProjectSpec[]
+  aiTaskRuns    AiTaskRun[]
 
   @@index([ownerId])
   @@index([createdAt])
-}
-
-model TaskRun {
-  id        String   @id @default(cuid())
-  runId     String   @unique
-  projectId String
-  userId    String
-  createdAt DateTime @default(now())
-
-  @@index([runId])
-  @@index([userId, projectId])
 }
 
 model ProjectSpec {
