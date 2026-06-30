@@ -36,7 +36,8 @@ Ghost AI is a real-time collaborative system design workspace. Users describe a 
 
 ### Collaborative Canvas
 
-- Shared real-time canvas using Liveblocks and React Flow.
+- Shared real-time canvas currently using Liveblocks and React Flow.
+- Internal realtime foundation provides authenticated room tokens, presence, and event broadcast side-by-side before the canvas runtime cutover.
 - Live cursors, presence indicators, and node/edge editing.
 - Canvas snapshots persisted to Vercel Blob.
 
@@ -68,6 +69,7 @@ Ghost AI is a real-time collaborative system design workspace. Users describe a 
 - Collaborator access by project
 - Starter system design template library and import
 - Real-time shared canvas with nodes, edges, and presence
+- Internal realtime room/presence/event foundation for the Liveblocks replacement path
 - AI-powered architecture generation from prompts
 - AI-powered Markdown spec generation from the canvas graph
 - Persistent storage for project metadata and generated artifacts
@@ -89,3 +91,4 @@ Ghost AI is a real-time collaborative system design workspace. Users describe a 
 4. AI can generate an architecture into the shared room from a prompt.
 5. The graph can be converted into a persisted Markdown spec.
 6. Project metadata and generated artifacts are stored in the correct layers.
+7. Internal realtime room access is authenticated before any custom realtime connection is accepted.

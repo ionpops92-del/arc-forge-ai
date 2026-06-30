@@ -40,12 +40,15 @@
 - Canvas snapshots and generated specs belong in Vercel Blob; Prisma stores only the blob URL reference.
 - Do not store large generated content directly in the database.
 - Task run records are first-class relational data — treat ownership and run IDs as verified before any token issuance.
+- Realtime room event records are foundation data for the internal collaboration engine; keep them compact and scoped by project/room/user.
 
 ## File Organization
 
 - `lib/` — shared infrastructure: Prisma client, auth helpers, utilities.
 - `lib/ai-tasks/` — durable AI task leasing, handlers, and worker orchestration.
+- `lib/realtime/` — signed room tokens, protocol types, access checks, room state, and standalone WebSocket server logic.
 - `scripts/ai-worker.ts` — AI worker process entrypoint.
+- `scripts/realtime-server.ts` — internal realtime WebSocket service entrypoint.
 - `components/` — UI composition only; no business logic.
 - `app/api/` — route handlers for auth, triggering, and persistence.
 - Name files after the responsibility they contain, not the technology.
