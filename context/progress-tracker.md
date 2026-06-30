@@ -3,10 +3,10 @@
 Update this file whenever the current phase, active feature, or implementation state changes.
 
 ## Current Phase
-- Local Docker Runtime — implemented and validated on `local-docker-runtime-v1`; pending PR.
+- Local Docker Runtime — PR #2 is open from `local-docker-runtime-v1`; implemented and validated.
 
 ## Current Goal
-- Open a PR for the Windows-friendly local Docker PostgreSQL development runtime.
+- Await PR #2 review/merge for the Windows-friendly local Docker PostgreSQL development runtime.
 
 ## Completed
 
@@ -44,10 +44,10 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## In Progress
 
-- Local Docker Runtime PR preparation.
+- Local Docker Runtime PR #2 review/merge.
 
 ## Next Up
-- Review the local Docker runtime PR, then decide whether to merge.
+- Review PR #2, then decide whether to merge. Local PostgreSQL started, migration passed, the app started at `http://localhost:3000`, and auth smoke passed.
 
 
 
