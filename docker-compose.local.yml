@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: arc-forge-ai-postgres-local
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: arcforge_ai
+      POSTGRES_USER: arcforge
+      POSTGRES_PASSWORD: arcforge
+    volumes:
+      - arc-forge-ai-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arcforge -d arcforge_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  arc-forge-ai-postgres-data:

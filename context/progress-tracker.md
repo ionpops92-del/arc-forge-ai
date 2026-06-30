@@ -3,10 +3,10 @@
 Update this file whenever the current phase, active feature, or implementation state changes.
 
 ## Current Phase
-- Internal Auth Foundation — PR #1 is open from `internal-auth-foundation-v1`; implementation and PR follow-up fixes are pushed, local Docker PostgreSQL migration passed, and DB-backed auth smoke tests passed.
+- Local Docker Runtime — implemented and validated on `local-docker-runtime-v1`; pending PR.
 
 ## Current Goal
-- Await PR #1 review/merge.
+- Open a PR for the Windows-friendly local Docker PostgreSQL development runtime.
 
 ## Completed
 
@@ -44,10 +44,10 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## In Progress
 
-- Awaiting PR #1 review/merge.
+- Local Docker Runtime PR preparation.
 
 ## Next Up
-- Review PR #1 and plan any separate data migration needed for existing Clerk-owned project rows.
+- Review the local Docker runtime PR, then decide whether to merge.
 
 
 
