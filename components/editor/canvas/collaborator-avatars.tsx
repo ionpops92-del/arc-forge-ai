@@ -6,6 +6,7 @@ import { UserMenu } from "@/components/auth/user-menu"
 import { useCurrentUser } from "@/hooks/use-current-user"
 
 const MAX_VISIBLE = 5
+const FALLBACK_COLLABORATOR_COLOR = "var(--color-text-muted)"
 
 export function CollaboratorAvatars() {
   const { user } = useCurrentUser()
@@ -25,7 +26,7 @@ export function CollaboratorAvatars() {
                 key={other.connectionId}
                 name={other.info?.name ?? "Anonymous"}
                 avatar={other.info?.avatar}
-                color={other.info?.color ?? "#888888"}
+                color={other.info?.color ?? FALLBACK_COLLABORATOR_COLOR}
               />
             ))}
             {overflow > 0 && (

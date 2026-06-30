@@ -4,6 +4,8 @@ import { useOthers } from "@liveblocks/react"
 import { useViewport } from "@xyflow/react"
 import { Loader2 } from "lucide-react"
 
+const FALLBACK_CURSOR_COLOR = "var(--color-text-muted)"
+
 export function PresenceCursors() {
   const others = useOthers()
   const { x: viewportX, y: viewportY, zoom } = useViewport()
@@ -18,7 +20,7 @@ export function PresenceCursors() {
 
         const x = cursor.x * zoom + viewportX
         const y = cursor.y * zoom + viewportY
-        const color = other.info?.color ?? "#888888"
+        const color = other.info?.color ?? FALLBACK_CURSOR_COLOR
         const name = other.info?.name ?? "Anonymous"
 
         return (

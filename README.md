@@ -146,7 +146,8 @@ DATABASE_URL=
 
 ━━━━━━━━━━━━━━━━━━━━
 # Google
-GOOGLE_GENERATIVE_AI_API_KEY=
+GOOGLE_AI_API_KEY=
+# Legacy alias also supported: GOOGLE_GENERATIVE_AI_API_KEY
 # Optional: override the default Gemini model (default: gemini-2.0-flash)
 GEMINI_MODEL=
 # Optional: override model used specifically for spec generation
