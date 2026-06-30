@@ -6,7 +6,7 @@
 | ---------------- | ----------------------- | -------------------------------------------------------------- |
 | Framework        | Next.js 16 + TypeScript | Full-stack app with server/client boundaries                   |
 | UI               | Tailwind + shadcn/ui    | Component composition and styling                              |
-| Auth             | Clerk                   | User identity and route protection                             |
+| Auth             | Internal auth           | User identity, server-side sessions, and route protection      |
 | Database         | Prisma + PostgreSQL     | Relational metadata: projects, collaborators, specs, task runs |
 | Canvas           | Liveblocks + React Flow | Real-time collaborative canvas, presence, and cursors          |
 | Background tasks | Trigger.dev             | Durable AI generation workflows                                |
@@ -27,14 +27,16 @@
 - **Vercel Blob**: generated artifacts — canvas snapshots at `canvas/{projectId}.json` and specs at `specs/{projectId}/{specId}.md`.
 - Project records, spec records, and task run records belong in PostgreSQL.
 - Canvas content and Markdown output are stored in and retrieved from Vercel Blob.
-- The blob URL is stored in the database (`canvasJsonPath`, `filePath`) as the reference to the artifact.
+- The blob URL is stored in the database (`canvasBlobUrl`, `filePath`) as the reference to the artifact.
 
 ## Auth and Collaboration Model
 
-- Every project has a single owner (Clerk user ID).
-- Projects can include additional collaborators.
+- Every project has a single owner (`User.id` from the internal auth system).
+- Internal sessions are verified server-side. Raw session tokens live only in httpOnly cookies; only hashed tokens are stored in PostgreSQL.
+- Projects can include additional collaborators by normalized email address.
 - Only authenticated users can access protected routes.
-- Only the owner or a collaborator can mutate project resources.
+- Only the owner or a collaborator can mutate shared project resources.
+- Owner-only project administration remains restricted to the owner.
 - Liveblocks room tokens are issued only after verifying project membership.
 
 ## Starter System Designs
@@ -57,7 +59,7 @@
 
 - Input: current canvas graph and project context.
 - Execution: durable background task via Trigger.dev.
-- Output: Markdown technical spec saved to the filesystem and linked to the project in the database.
+- Output: Markdown technical spec saved to Vercel Blob and linked to the project in the database.
 
 ## Invariants
 

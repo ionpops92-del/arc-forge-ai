@@ -1,27 +1,34 @@
-import { auth } from "@clerk/nextjs/server"
+import { z } from "zod"
 import {
   getProjectShareDetails,
   isValidCollaboratorEmail,
   normalizeCollaboratorEmail,
 } from "@/lib/project-collaborators"
-import { getCurrentProjectIdentity } from "@/lib/project-access"
+import {
+  getCurrentProjectIdentity,
+  projectAccessErrorResponse,
+  requireProjectOwner,
+} from "@/lib/project-access"
 import { prisma } from "@/lib/prisma"
 
+const CollaboratorSchema = z.object({
+  email: z.string().email().max(254),
+})
+
 function getEmailFromBody(body: unknown) {
-  if (typeof body !== "object" || body === null || !("email" in body)) {
+  const parsed = CollaboratorSchema.safeParse(body)
+  if (!parsed.success) {
     return null
   }
 
-  const value = (body as { email: unknown }).email
-
-  return typeof value === "string" ? normalizeCollaboratorEmail(value) : null
+  return normalizeCollaboratorEmail(parsed.data.email)
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   ctx: RouteContext<"/api/projects/[projectId]/collaborators">
 ) {
-  const identity = await getCurrentProjectIdentity()
+  const identity = await getCurrentProjectIdentity(request)
 
   if (!identity.userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
@@ -41,24 +48,18 @@ export async function POST(
   request: Request,
   ctx: RouteContext<"/api/projects/[projectId]/collaborators">
 ) {
-  const { userId } = await auth()
+  const identity = await getCurrentProjectIdentity(request)
 
-  if (!userId) {
+  if (!identity.userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   const { projectId } = await ctx.params
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { id: true, ownerId: true },
-  })
 
-  if (!project) {
-    return Response.json({ error: "Not found" }, { status: 404 })
-  }
-
-  if (project.ownerId !== userId) {
-    return Response.json({ error: "Forbidden" }, { status: 403 })
+  try {
+    await requireProjectOwner(projectId, identity)
+  } catch (error) {
+    return projectAccessErrorResponse(error)
   }
 
   const body: unknown = await request.json().catch(() => ({}))
@@ -67,8 +68,6 @@ export async function POST(
   if (!email || !isValidCollaboratorEmail(email)) {
     return Response.json({ error: "A valid email is required" }, { status: 400 })
   }
-
-  const identity = await getCurrentProjectIdentity()
 
   if (identity.primaryEmailAddress && email === identity.primaryEmailAddress) {
     return Response.json(
@@ -107,24 +106,18 @@ export async function DELETE(
   request: Request,
   ctx: RouteContext<"/api/projects/[projectId]/collaborators">
 ) {
-  const { userId } = await auth()
+  const identity = await getCurrentProjectIdentity(request)
 
-  if (!userId) {
+  if (!identity.userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   const { projectId } = await ctx.params
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { id: true, ownerId: true },
-  })
 
-  if (!project) {
-    return Response.json({ error: "Not found" }, { status: 404 })
-  }
-
-  if (project.ownerId !== userId) {
-    return Response.json({ error: "Forbidden" }, { status: 403 })
+  try {
+    await requireProjectOwner(projectId, identity)
+  } catch (error) {
+    return projectAccessErrorResponse(error)
   }
 
   const body: unknown = await request.json().catch(() => ({}))

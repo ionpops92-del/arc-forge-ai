@@ -6,7 +6,7 @@ export async function GET(
   _request: NextRequest,
   ctx: { params: Promise<{ projectId: string }> }
 ) {
-  const identity = await getCurrentProjectIdentity()
+  const identity = await getCurrentProjectIdentity(_request)
   if (!identity.userId) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   const { projectId } = await ctx.params

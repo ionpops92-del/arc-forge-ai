@@ -7,7 +7,7 @@ export async function GET(
   _request: NextRequest,
   ctx: RouteContext<"/api/projects/[projectId]/canvas">
 ) {
-  const identity = await getCurrentProjectIdentity()
+  const identity = await getCurrentProjectIdentity(_request)
   if (!identity.userId) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   const { projectId } = await ctx.params
@@ -32,7 +32,7 @@ export async function PUT(
   request: NextRequest,
   ctx: RouteContext<"/api/projects/[projectId]/canvas">
 ) {
-  const identity = await getCurrentProjectIdentity()
+  const identity = await getCurrentProjectIdentity(request)
   if (!identity.userId) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
   const { projectId } = await ctx.params

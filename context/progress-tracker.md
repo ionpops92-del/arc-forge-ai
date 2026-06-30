@@ -3,10 +3,10 @@
 Update this file whenever the current phase, active feature, or implementation state changes.
 
 ## Current Phase
-- Feature 28 (Spec Persistence & Download) — complete
+- Internal Auth Foundation — implemented locally on `internal-auth-foundation-v1`; pending local DB migration and smoke testing once `DATABASE_URL` is configured.
 
 ## Current Goal
-- Feature 29 (TBD)
+- Validate the internal auth foundation against a local database, then review and commit.
 
 ## Completed
 
@@ -40,19 +40,20 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 27 (Spec Generation Flow): app/api/ai/spec/route.ts — POST accepts roomId/chatHistory/nodes/edges, authenticates via Clerk, resolves projectId from roomId using getAccessibleProject (no client-supplied projectId), triggers generate-spec task, creates TaskRun record, returns runId. app/api/ai/spec/token/route.ts — POST accepts runId, verifies TaskRun ownership, issues Trigger.dev public token scoped to that run with 1-hour expiry. trigger/generate-spec.ts — schemaTask (id "generate-spec") with Zod-validated payload (projectId/roomId/chatHistory/nodes/edges); uses Gemini gemini-2.0-flash via @ai-sdk/google generateText to produce a structured Markdown spec from canvas context and chat history; tracks status/specLength in run metadata; returns { spec } as plain Markdown string. `npm run build` passes clean.
 - Feature 29 (Spec UI Integration): GET /api/projects/[projectId]/specs lists specs for a project; GET /api/projects/[projectId]/specs/[specId] returns spec content as text/markdown for preview (not as attachment). ai-sidebar.tsx Specs tab: fetches spec list when sidebar opens, renders clickable compact list with filename/createdAt, download button per item; preview Dialog (base-ui) shows spec content rendered via react-markdown with dark-theme styling; download action creates a temporary anchor to the download endpoint and lets the browser handle the file. react-markdown ^10.1.0 installed. Build clean.
 - Feature 28 (Spec Persistence & Download): ProjectSpec Prisma model added (id, projectId, filePath, createdAt; relation to Project with cascade delete; index on projectId); migration applied and client regenerated. trigger/generate-spec.ts updated to upload generated Markdown to Vercel Blob (specs/{projectId}/{timestamp}.md, private access) and create a ProjectSpec record, returning specId alongside spec. app/api/projects/[projectId]/specs/[specId]/download/route.ts — GET authenticates user, verifies project access via userHasProjectAccess, verifies spec belongs to project, fetches file from Vercel Blob and streams it back as a Markdown attachment (Content-Disposition: attachment). Returns 401/403/404 on error cases. `npm run build` passes clean.
+- Internal Auth Foundation: Clerk runtime usage replaced with internal server-side sessions. Added Prisma auth models/migration for User, PasswordCredential, AuthSession, EmailVerificationToken, and PasswordResetToken. Added auth helpers for password hashing, secure token generation/hashing, httpOnly cookies, session creation/revocation, and current-user lookup. Added `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, and `/api/auth/me`. Project APIs, collaborator lookup, Liveblocks auth, Trigger-backed AI routes, sign-in/sign-up pages, root layout, editor user menu, proxy.ts, README, and package files now use internal auth. `/api/ai/design` now requires authentication, verifies project access, verifies `roomId === project.id`, and creates/triggers tasks only after authorization succeeds. `@clerk/nextjs` and `@clerk/ui` removed; `bcryptjs` and `zod` added. `npx prisma generate`, `npm run lint`, and `npm run build` pass. `npx prisma migrate dev` cannot run locally yet because no `DATABASE_URL` is configured. No commit or push performed.
 
 ## In Progress
 
-- None.
+- Local database migration and smoke testing for internal auth, blocked until `DATABASE_URL` is configured.
 
 ## Next Up
-- TBD
+- Add local `DATABASE_URL`, run `npx prisma migrate dev`, then smoke test register/login/logout, project owner access, collaborator email access, Liveblocks auth, `/api/ai/design`, and spec generation before review and commit.
 
 
 
 ## Open Questions
 
-- None yet.
+- Existing projects created with Clerk user IDs in `Project.ownerId` will not automatically map to internal `User.id` values. A safe migration or manual ownership mapping plan is still needed for any existing data that must remain accessible.
 
 ## Architecture Decisions
 
@@ -66,7 +67,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Using Next.js 16.2.4 with React 19 and Tailwind CSS v4.
 - shadcn version 4.5.0 was used; it auto-detected Tailwind v4.
 - lucide-react ^1.11.0 installed as a direct dependency.
-- @clerk/nextjs ^7.2.7 and @clerk/ui ^1.6.7 installed.
+- Clerk packages removed from runtime dependencies. Internal auth currently uses bcryptjs ^3.0.3 for password hashing and zod ^3.25.76 for request validation.
 - @liveblocks/node installed alongside existing @liveblocks/client, @liveblocks/react, @liveblocks/react-flow, @liveblocks/react-ui. Liveblocks client uses lazy init (getLiveblocks()) to avoid key validation errors at build time.
 - @vercel/blob ^2.3.3 installed. BLOB_READ_WRITE_TOKEN set in .env.local.
 - @trigger.dev/sdk ^4.4.4 installed. trigger.config.ts reads project ref from TRIGGER_PROJECT_REF env var. TRIGGER_SECRET_KEY must be set in .env.local for triggering tasks from server code. Run `npx trigger.dev@latest dev` for local development; deploy with `npx trigger.dev@latest deploy`.

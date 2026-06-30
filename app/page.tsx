@@ -1,9 +1,9 @@
-import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
+import { getCurrentUser } from "@/lib/auth/current-user"
 
 export default async function Home() {
-  const { userId } = await auth()
-  if (userId) {
+  const user = await getCurrentUser()
+  if (user) {
     redirect("/editor")
   } else {
     redirect("/sign-in")
