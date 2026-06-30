@@ -3,10 +3,10 @@
 Update this file whenever the current phase, active feature, or implementation state changes.
 
 ## Current Phase
-- Internal Auth Foundation — PR #1 is open from `internal-auth-foundation-v1`; PR follow-up fixes and local DB-backed validation are complete locally and pending push.
+- Internal Auth Foundation — PR #1 is open from `internal-auth-foundation-v1`; implementation and PR follow-up fixes are pushed, local Docker PostgreSQL migration passed, and DB-backed auth smoke tests passed.
 
 ## Current Goal
-- Push PR #1 follow-up commit and await review.
+- Await PR #1 review/merge.
 
 ## Completed
 
@@ -44,7 +44,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## In Progress
 
-- PR #1 follow-up commit/push.
+- Awaiting PR #1 review/merge.
 
 ## Next Up
 - Review PR #1 and plan any separate data migration needed for existing Clerk-owned project rows.
