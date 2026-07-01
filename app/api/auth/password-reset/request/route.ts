@@ -18,6 +18,23 @@ const PasswordResetRequestSchema = z.object({
   email: z.string().email().max(254),
 })
 
+function logPasswordResetDeliveryFailure(userId: string, error: unknown) {
+  const errorName = error instanceof Error ? error.name : typeof error
+  const errorCode =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+      ? error.code
+      : undefined
+
+  console.warn("[auth:password-reset] Email delivery failed", {
+    userId,
+    errorName,
+    ...(errorCode ? { errorCode } : {}),
+  })
+}
+
 export async function POST(request: Request) {
   const body: unknown = await request.json().catch(() => ({}))
   const parsed = PasswordResetRequestSchema.safeParse(body)
@@ -65,10 +82,7 @@ export async function POST(request: Request) {
         : {}),
     })
   } catch (error) {
-    if (error instanceof RuntimeConfigError) {
-      return Response.json({ error: error.message }, { status: 500 })
-    }
-
-    throw error
+    logPasswordResetDeliveryFailure(user.id, error)
+    return Response.json(GENERIC_RESET_RESPONSE)
   }
 }
