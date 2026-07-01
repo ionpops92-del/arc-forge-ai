@@ -144,6 +144,17 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           {isSignUp ? "Sign in" : "Sign up"}
         </Link>
       </p>
+
+      {!isSignUp ? (
+        <p className="text-center text-sm text-text-muted">
+          <Link
+            href="/forgot-password"
+            className="font-medium text-accent-primary hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </p>
+      ) : null}
     </form>
   )
 }

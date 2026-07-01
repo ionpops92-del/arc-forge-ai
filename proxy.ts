@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { AUTH_SESSION_COOKIE_NAME } from "@/lib/auth/constants"
 
-const PUBLIC_ROUTES = ["/sign-in", "/sign-up"]
+const PUBLIC_ROUTES = ["/sign-in", "/sign-up", "/forgot-password", "/reset-password", "/verify-email"]
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some(
@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (pathname.startsWith("/editor")) {
+  if (pathname.startsWith("/editor") || pathname.startsWith("/account")) {
     const hasSessionCookie = request.cookies.has(AUTH_SESSION_COOKIE_NAME)
 
     if (!hasSessionCookie) {

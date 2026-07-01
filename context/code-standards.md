@@ -54,12 +54,15 @@
 - `AI_PROVIDER` defaults to `mock`; external AI keys must only be required when their provider is selected.
 - AI provider keys are server-only and must never use `NEXT_PUBLIC_` prefixes.
 - Validate structured AI output before applying it to canvas state.
+- `EMAIL_PROVIDER` defaults to `dev_console` only in local mode; SMTP credentials must be server-only and required only when `EMAIL_PROVIDER=smtp`.
+- Raw account verification and password reset tokens must never be stored; store only hashes and consume tokens after successful use.
 
 ## File Organization
 
 - `lib/` — shared infrastructure: Prisma client, auth helpers, utilities.
 - `lib/ai/` — AI provider contracts, provider factory, provider adapters, and design/spec use-case helpers.
 - `lib/ai-tasks/` — durable AI task leasing, handlers, and worker orchestration.
+- `lib/email/` — server-only account email provider abstraction.
 - `lib/realtime/` — signed room tokens, protocol types, access checks, room state, and standalone WebSocket server logic.
 - `scripts/ai-worker.ts` — AI worker process entrypoint.
 - `scripts/realtime-server.ts` — internal realtime WebSocket service entrypoint.

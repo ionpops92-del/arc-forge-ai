@@ -49,10 +49,11 @@ The numbered feature notes below are historical implementation notes. They descr
 - Realtime Transport Config Hardening: browser realtime URL validation now uses browser-safe public environment mode, server-only transport validation remains private, and internal realtime publish URL fallback to localhost is limited to explicit local server mode.
 - Provider-Agnostic Artifact Storage: direct artifact reads/writes now go through a storage provider contract. Local development defaults to filesystem storage under `.local-storage`; Vercel Blob remains optional behind the provider. Canvas snapshots and generated specs keep PostgreSQL metadata references while large content stays outside the database.
 - Provider-Agnostic AI Runtime: AI design and spec generation run through a server-side provider contract. Local development defaults to deterministic mock AI with no external key, while Google Gemini and OpenAI-compatible providers remain selectable through environment configuration.
+- Account Verification and Recovery: internal auth now includes a My Account page, email verification, forgot/reset password, logged-in password change, single-use hashed verification/reset tokens, local console email delivery, and production SMTP support.
 
 ## In Progress
 
-- Foundation stabilization and production hardening — verify the internal auth, AI task runner, realtime, storage, and AI provider foundation under realistic local workflows, then tighten deployment guidance and operational edge cases.
+- Foundation stabilization and production hardening — verify the internal auth, account recovery, AI task runner, realtime, storage, and AI provider foundation under realistic local workflows, then tighten deployment guidance and operational edge cases.
 
 ## Next Up
 - Realtime collaboration stabilization, including conflict handling, reconnection polish, event replay strategy, and production reverse-proxy guidance.
@@ -76,6 +77,7 @@ The numbered feature notes below are historical implementation notes. They descr
 - shadcn version 4.5.0 was used; it auto-detected Tailwind v4.
 - lucide-react ^1.11.0 installed as a direct dependency.
 - Clerk packages removed from runtime dependencies. Internal auth currently uses bcryptjs ^3.0.3 for password hashing and zod ^3.25.76 for request validation.
+- Account email delivery is provider-backed. Local development uses `EMAIL_PROVIDER=dev_console`; production should use SMTP with server-only credentials.
 - Liveblocks packages were part of the historical collaboration stack and have been replaced by the internal realtime WebSocket runtime.
 - Artifact storage is provider-backed. Local development uses `.local-storage`; Vercel Blob can be enabled with `STORAGE_PROVIDER=vercel_blob` and `BLOB_READ_WRITE_TOKEN`.
 - Trigger.dev runtime packages and config were replaced by the internal PostgreSQL-backed AI task runner.

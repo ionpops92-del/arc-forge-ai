@@ -6,6 +6,8 @@ export interface CurrentUser {
   id: string
   email: string
   name: string | null
+  emailVerifiedAt: string | null
+  emailVerified: boolean
 }
 
 export function useCurrentUser() {

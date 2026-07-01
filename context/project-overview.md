@@ -31,6 +31,8 @@ Ghost AI is a real-time collaborative system design workspace. Users describe a 
 ### Authentication and Projects
 
 - User sign-in and route protection.
+- My Account, email verification, forgot password, reset password, and logged-in password change flows.
+- Provider-backed account email delivery with local console delivery and production SMTP support.
 - Project creation, ownership, and collaborator access.
 - Project list and workspace navigation.
 
@@ -66,6 +68,7 @@ Ghost AI is a real-time collaborative system design workspace. Users describe a 
 ### In Scope
 
 - Authentication and route protection
+- Account verification and password recovery
 - Project creation and ownership
 - Collaborator access by project
 - Starter system design template library and import
@@ -93,3 +96,4 @@ Ghost AI is a real-time collaborative system design workspace. Users describe a 
 5. The graph can be converted into a persisted Markdown spec.
 6. Project metadata and generated artifacts are stored in the correct layers.
 7. Internal realtime room access is authenticated before any custom realtime connection is accepted.
+8. Users can verify their email and recover or change passwords without an external auth provider.

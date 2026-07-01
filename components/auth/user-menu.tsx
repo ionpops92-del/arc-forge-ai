@@ -1,6 +1,7 @@
 "use client"
 
 import { LogOut } from "lucide-react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useCurrentUser } from "@/hooks/use-current-user"
@@ -47,10 +48,18 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
       </button>
 
       {!compact ? (
-        <Button variant="ghost" size="sm" className="gap-2" onClick={handleLogout}>
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </Button>
+        <>
+          <Link
+            href="/account"
+            className="rounded-lg px-2.5 py-1 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-subtle hover:text-text-primary"
+          >
+            Account
+          </Link>
+          <Button variant="ghost" size="sm" className="gap-2" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </Button>
+        </>
       ) : null}
     </div>
   )
