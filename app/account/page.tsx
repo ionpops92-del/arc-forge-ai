@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { UserMenu } from "@/components/auth/user-menu"
 import { AccountClient } from "@/components/account/account-client"
 import { getCurrentUser } from "@/lib/auth/current-user"
+import { APP_NAME } from "@/lib/branding"
 
 export default async function AccountPage() {
   const user = await getCurrentUser()
@@ -15,7 +16,7 @@ export default async function AccountPage() {
     <main className="min-h-screen bg-bg-base text-text-primary">
       <header className="flex h-14 items-center justify-between border-b border-border-default bg-bg-surface px-4">
         <Link href="/editor" className="text-sm font-semibold text-text-primary">
-          Ghost AI
+          {APP_NAME}
         </Link>
         <UserMenu />
       </header>

@@ -37,6 +37,7 @@ const nodeSchema = z
 const edgeDataSchema = z
   .object({
     label: z.string().max(240).optional(),
+    labels: z.array(z.string().max(240)).max(8).optional(),
   })
   .passthrough()
 
@@ -86,27 +87,44 @@ export function sanitizeCanvasSnapshot(value: unknown): CanvasSnapshot {
         dragging: false,
       } as CanvasNode
     }),
-    edges: parsed.data.edges.map((edge) => ({
-      ...edge,
-      id: edge.id.trim(),
-      source: edge.source.trim(),
-      target: edge.target.trim(),
-      sourceHandle: edge.sourceHandle ?? null,
-      targetHandle: edge.targetHandle ?? null,
-      type: "canvasEdge",
-      data: {
-        ...edge.data,
-        label: edge.data.label ?? "",
-      },
-      markerEnd: {
-        type: "arrowclosed",
-        color: "rgba(255,255,255,0.4)",
-        width: 16,
-        height: 16,
-      },
-      selected: false,
-    })) as CanvasEdge[],
+    edges: parsed.data.edges.map((edge) => {
+      const labels = normalizeEdgeLabels(edge.data)
+      return {
+        ...edge,
+        id: edge.id.trim(),
+        source: edge.source.trim(),
+        target: edge.target.trim(),
+        sourceHandle: edge.sourceHandle ?? null,
+        targetHandle: edge.targetHandle ?? null,
+        type: "canvasEdge",
+        data: {
+          ...edge.data,
+          label: labels[0] ?? "",
+          labels,
+        },
+        markerEnd: {
+          type: "arrowclosed",
+          color: "rgba(255,255,255,0.4)",
+          width: 16,
+          height: 16,
+        },
+        selected: false,
+      }
+    }) as CanvasEdge[],
   }
+}
+
+function normalizeEdgeLabels(data: { label?: string; labels?: string[] }) {
+  const labels = Array.isArray(data.labels) ? data.labels : []
+  const normalized = labels
+    .map((label) => label.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+
+  if (normalized.length > 0) return normalized
+
+  const legacyLabel = data.label?.trim()
+  return legacyLabel ? [legacyLabel] : []
 }
 
 export function serializeCanvasSnapshot(snapshot: CanvasSnapshot) {

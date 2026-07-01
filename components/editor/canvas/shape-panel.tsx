@@ -89,7 +89,7 @@ export function ShapePanel() {
 
   function handleDragStart(event: React.DragEvent, shape: NodeShape) {
     const payload = JSON.stringify({ shape, size: SHAPE_DEFAULTS[shape] })
-    event.dataTransfer.setData("application/ghost-shape", payload)
+    event.dataTransfer.setData("application/arc-forge-shape", payload)
     event.dataTransfer.effectAllowed = "copy"
 
     // Replace the default browser drag image with a transparent pixel

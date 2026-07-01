@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { AI_ASSISTANT_NAME } from "@/lib/branding"
 
 export const AiSpecChatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -27,7 +28,13 @@ export const AiSpecEdgeSchema = z
     id: z.string(),
     source: z.string(),
     target: z.string(),
-    data: z.object({ label: z.string().optional() }).passthrough().optional(),
+    data: z
+      .object({
+        label: z.string().optional(),
+        labels: z.array(z.string()).optional(),
+      })
+      .passthrough()
+      .optional(),
   })
   .passthrough()
 
@@ -43,7 +50,15 @@ export type AiSpecChatMessage = z.infer<typeof AiSpecChatMessageSchema>
 export type AiSpecNode = z.infer<typeof AiSpecNodeSchema>
 export type AiSpecEdge = z.infer<typeof AiSpecEdgeSchema>
 
-export const SPEC_SYSTEM_PROMPT = `You are Ghost AI, a senior technical architect. Generate a comprehensive Markdown technical specification document based on the provided architecture canvas and conversation context.
+function formatEdgeLabels(edge: AiSpecEdge) {
+  const labels =
+    edge.data?.labels?.map((label) => label.trim()).filter(Boolean) ?? []
+  if (labels.length > 0) return ` [${labels.join("; ")}]`
+
+  return edge.data?.label ? ` [${edge.data.label}]` : ""
+}
+
+export const SPEC_SYSTEM_PROMPT = `You are ${AI_ASSISTANT_NAME}, a senior technical architect. Generate a comprehensive Markdown technical specification document based on the provided architecture canvas and conversation context.
 
 Structure the spec as follows:
 1. **Overview** - What the system does and its key goals
@@ -73,13 +88,12 @@ export function buildSpecContext(
 
   const edgeLines = edges
     .map((edge) => {
-      const label = edge.data?.label ? ` [${edge.data.label}]` : ""
-      return `- ${edge.source} -> ${edge.target}${label}`
+      return `- ${edge.source} -> ${edge.target}${formatEdgeLabels(edge)}`
     })
     .join("\n")
 
   const chatLines = chatHistory
-    .map((message) => `${message.role === "user" ? "User" : "Ghost AI"}: ${message.content}`)
+    .map((message) => `${message.role === "user" ? "User" : AI_ASSISTANT_NAME}: ${message.content}`)
     .join("\n")
 
   return [

@@ -180,7 +180,7 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
       />
 
       <NodeToolbar isVisible={selected ?? false} position={Position.Top}>
-        <div className="nodrag nopan flex items-center gap-1.5 rounded-full border border-border-default bg-bg-surface/95 px-2.5 py-1.5 shadow-xl backdrop-blur-xl">
+        <div className="nodrag nopan relative z-50 flex items-center gap-1.5 rounded-full border border-border-default bg-bg-surface/95 px-2.5 py-1.5 shadow-xl backdrop-blur-xl">
           {NODE_COLORS.map((pair) => (
             <ColorSwatch
               key={pair.fill}

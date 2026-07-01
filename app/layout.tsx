@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import { APP_NAME } from "@/lib/branding"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Ghost AI",
-  description: "AI-powered design collaboration",
+  title: APP_NAME,
+  description: "AI-powered collaborative system architecture",
 }
 
 export default function RootLayout({
