@@ -31,6 +31,7 @@ services:
       AUTH_SESSION_COOKIE_NAME: arc_forge_session
       APP_URL: http://localhost:3000
       NEXT_TELEMETRY_DISABLED: "1"
+      INTERNAL_REALTIME_TOKEN_SECRET: arc-forge-local-realtime-secret-change-me
     volumes:
       - .:/app
       - arc-forge-ai-node-modules:/app/node_modules
@@ -41,6 +42,7 @@ services:
       set +a &&
       export DATABASE_URL='postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public' &&
       export NEXT_TELEMETRY_DISABLED=1 &&
+      export INTERNAL_REALTIME_TOKEN_SECRET=$${INTERNAL_REALTIME_TOKEN_SECRET:-arc-forge-local-realtime-secret-change-me} &&
       npm install &&
       npx prisma generate &&
       npx prisma migrate deploy &&
@@ -81,6 +83,47 @@ services:
       export DATABASE_URL='postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public' &&
       export NEXT_TELEMETRY_DISABLED=1 &&
       npm run ai:worker"
+
+  realtime:
+    image: node:22-bookworm-slim
+    container_name: arc-forge-ai-realtime-local
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public
+      REALTIME_PORT: "3001"
+      APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+      INTERNAL_REALTIME_TOKEN_SECRET: arc-forge-local-realtime-secret-change-me
+    volumes:
+      - .:/app
+      - arc-forge-ai-node-modules:/app/node_modules
+    command: >
+      sh -c "set -a &&
+      [ ! -f .env.local ] || . ./.env.local &&
+      set +a &&
+      export DATABASE_URL='postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public' &&
+      export REALTIME_PORT=3001 &&
+      export NEXT_TELEMETRY_DISABLED=1 &&
+      export INTERNAL_REALTIME_TOKEN_SECRET=$${INTERNAL_REALTIME_TOKEN_SECRET:-arc-forge-local-realtime-secret-change-me} &&
+      npm run realtime:server"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3001/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
 
 volumes:
   arc-forge-ai-postgres-data:

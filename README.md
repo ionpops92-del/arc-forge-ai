@@ -17,6 +17,7 @@
 <img src="https://img.shields.io/badge/-Internal_Auth-0f766e?style=for-the-badge&logo=nextdotjs&logoColor=white" /><br/>
 
 <img src="https://img.shields.io/badge/-Internal_AI_Tasks-22c55e?style=for-the-badge&logo=postgresql&logoColor=white" />
+<img src="https://img.shields.io/badge/-Internal_Realtime-0891b2?style=for-the-badge&logo=websocket&logoColor=white" />
 <img src="https://img.shields.io/badge/-Liveblocks-050505?style=for-the-badge&logo=liveblocks&logoColor=white" />
 <img src="https://img.shields.io/badge/-CodeRabbit-orange?style=for-the-badge&logo=coderabbit&logoColor=white" />
 
@@ -68,6 +69,8 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 - **Internal AI Task Runner** is a PostgreSQL-backed worker system for durable AI jobs. API routes enqueue task runs after auth/project checks, and a separate worker leases queued runs, records attempts/events, handles retries, and executes design/spec handlers.
 
+- **Internal Realtime Foundation** is a standalone Node/WebSocket service backed by PostgreSQL. It issues short-lived room tokens through authenticated Next.js APIs, verifies room access, tracks ephemeral presence, and broadcasts typed room events side-by-side with Liveblocks.
+
 - **[Prisma ORM](https://www.prisma.io/)** is a next-generation ORM for Node.js and TypeScript that simplifies database interactions. By providing a type-safe client generated from your schema, it makes querying your database intuitive, readable, and highly efficient, effectively eliminating common SQL-related runtime errors.
 
 - **[PostgreSQL](https://www.postgresql.org/)** is an advanced, open-source object-relational database system widely recognized for its reliability, extensibility, and standard compliance. It provides the persistent storage layer for your application, supporting complex queries, transactional integrity, and large-scale data handling.
@@ -83,6 +86,8 @@ If you're getting started and need assistance or face any bugs, join our active 
 👉 **AI Architecture Agent**: Submit a plain-English prompt; Gemini draws nodes and edges onto the live canvas in real-time via the internal AI worker and the Liveblocks Node.js SDK.
 
 👉 **Multiplayer Canvas**: Full real-time collaboration powered by Liveblocks: synchronized node/edge state, live cursor positions, and presence avatars for every connected user.
+
+👉 **Internal Realtime Foundation**: A dedicated WebSocket service provides authenticated room join, presence update, ping/pong, and generic event broadcast primitives while Liveblocks remains the active canvas runtime.
 
 👉 **Custom Canvas Nodes**: Double-click to edit node labels inline; select to resize with NodeResizer; choose from 12 colour swatches via a floating NodeToolbar — all synced across clients instantly.
 
@@ -138,6 +143,7 @@ Create a new file named `.env` in the root of your project and add the following
 AUTH_SESSION_COOKIE_NAME=arc_forge_session
 
 LIVEBLOCKS_SECRET_KEY=
+INTERNAL_REALTIME_TOKEN_SECRET=
 
 DATABASE_URL=
 BLOB_READ_WRITE_TOKEN=
@@ -173,6 +179,14 @@ In a second terminal, start the internal AI worker so queued AI tasks execute lo
 npm run ai:worker
 ```
 
+**Run Internal Realtime Server**
+
+In another terminal, start the internal realtime service for room token and WebSocket testing:
+
+```bash
+npm run realtime:server
+```
+
 ## Available Scripts
 
 | Command                   | Description                           |
@@ -182,8 +196,10 @@ npm run ai:worker
 | `npm run start`           | Start production server               |
 | `npm run lint`            | Run ESLint                            |
 | `npm run ai:worker`       | Run the internal AI worker            |
-| `npm run stack:local:up`  | Start local PostgreSQL, app, worker   |
+| `npm run stack:local:up`  | Start local PostgreSQL, app, worker, realtime |
 | `npm run worker:local:logs` | Tail local AI worker logs           |
+| `npm run realtime:local:logs` | Tail local realtime service logs  |
+| `npm run realtime:server` | Run the internal realtime WebSocket server |
 | `npm run prisma:generate` | Regenerate Prisma client              |
 | `npm run prisma:migrate`  | Create and apply a new migration      |
 | `npm run prisma:deploy`   | Apply pending migrations (production) |
@@ -208,9 +224,11 @@ npm run ai:worker
 ├── hooks/                # Custom React hooks (auto-save, keyboard shortcuts)
 ├── lib/                  # Shared utilities (Prisma client, Liveblocks, AI tasks)
 │   └── ai-tasks/         # Internal AI task service, handlers, worker loop
+│   └── realtime/         # Internal realtime token, protocol, and server modules
 ├── prisma/               # Prisma schema and migrations
 ├── scripts/
-│   └── ai-worker.ts      # Internal AI worker entrypoint
+│   ├── ai-worker.ts      # Internal AI worker entrypoint
+│   └── realtime-server.ts # Internal realtime service entrypoint
 └── types/                # Shared TypeScript types
 ```
 

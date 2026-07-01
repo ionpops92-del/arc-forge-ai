@@ -46,10 +46,10 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## In Progress
 
-- Internal AI Task Runner — PostgreSQL-backed task runs, worker leasing, retries, run status API, Docker worker service, and frontend polling status.
+- Internal Realtime Foundation — standalone WebSocket service, short-lived minimal non-PII authenticated room tokens, typed presence/event protocol, bounded WebSocket payloads, PostgreSQL-backed room event records, Docker realtime service, and a dev/test client hook.
 
 ## Next Up
-- Internal realtime collaboration engine design to replace Liveblocks while keeping React Flow as the canvas renderer.
+- Cut canvas state, presence, and chat from Liveblocks to the internal realtime engine while keeping React Flow as the canvas renderer.
 
 
 

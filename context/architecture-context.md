@@ -8,7 +8,8 @@
 | UI               | Tailwind + shadcn/ui    | Component composition and styling                              |
 | Auth             | Internal auth           | User identity, server-side sessions, and route protection      |
 | Database         | Prisma + PostgreSQL     | Relational metadata: projects, collaborators, specs, task runs |
-| Canvas           | Liveblocks + React Flow | Real-time collaborative canvas, presence, and cursors          |
+| Canvas           | Liveblocks + React Flow | Active collaborative canvas runtime and permanent renderer     |
+| Realtime         | Internal WebSocket service | PostgreSQL-backed room token, presence, and event foundation |
 | Background tasks | Internal AI task runner | PostgreSQL-backed durable AI generation workflows              |
 | Artifact storage | Vercel Blob             | Canvas snapshots and generated Markdown specs                  |
 
@@ -17,6 +18,8 @@
 - `app/api` — Authenticated request handlers: input validation, ownership checks, task triggering, and persistence.
 - `lib/ai-tasks` — Long-running background jobs: task leasing, retries, AI design generation, and spec generation.
 - `scripts/ai-worker.ts` — Worker process entrypoint for local and production task execution.
+- `lib/realtime` — Internal realtime foundation: signed room tokens, typed protocol, room registry, and WebSocket server.
+- `scripts/realtime-server.ts` — Standalone realtime service entrypoint for long-lived WebSocket connections.
 - `lib` — Shared infrastructure: Prisma client, access control helpers, and utilities.
 - `components` — UI composition: canvas surfaces, sidebars, dialogs, and interactive elements.
 - `prisma` — Database schema and generated client output.
@@ -24,9 +27,9 @@
 
 ## Storage Model
 
-- **Database**: metadata, ownership, relationships, AI task runs/events/attempts, and project spec records.
+- **Database**: metadata, ownership, relationships, AI task runs/events/attempts, realtime room events, and project spec records.
 - **Vercel Blob**: generated artifacts — canvas snapshots at `canvas/{projectId}.json` and specs at `specs/{projectId}/{specId}.md`.
-- Project records, spec records, and AI task run records belong in PostgreSQL.
+- Project records, spec records, AI task run records, and internal realtime room events belong in PostgreSQL.
 - Canvas content and Markdown output are stored in and retrieved from Vercel Blob.
 - The blob URL is stored in the database (`canvasBlobUrl`, `filePath`) as the reference to the artifact.
 
@@ -39,6 +42,8 @@
 - Only the owner or a collaborator can mutate shared project resources.
 - Owner-only project administration remains restricted to the owner.
 - Liveblocks room tokens are issued only after verifying project membership.
+- Internal realtime room tokens are short-lived, signed server-side, scoped to one project room, contain only minimal non-PII claims, and are issued only after verifying project membership.
+- Long-lived WebSocket connections run in the standalone realtime service, not in Next.js route handlers.
 
 ## Starter System Designs
 
@@ -54,7 +59,7 @@
 
 - Input: user prompt, project context, and current canvas state.
 - Execution: durable background task via the internal PostgreSQL-backed AI task runner.
-- Output: structured node and edge updates written into the shared Liveblocks room.
+- Output: structured node and edge updates written into the shared Liveblocks room. Internal realtime runs side-by-side until the canvas cutover.
 
 ### Spec Generation
 
@@ -70,3 +75,5 @@
 4. Client components are used only where browser interactivity or real-time state requires them.
 5. The canvas schema must remain consistent between user-created content and imported templates.
 6. AI workers lease queued tasks from PostgreSQL before execution; API routes only enqueue tasks after auth and project access checks.
+7. Internal realtime WebSocket connections must use short-lived room tokens and must not expose raw auth/session tokens.
+8. React Flow remains the permanent canvas renderer while the realtime transport is replaced incrementally.
