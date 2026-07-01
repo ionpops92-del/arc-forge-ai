@@ -1,8 +1,8 @@
-Add autosave and loading for the collaborative canvas so project state is persisted before adding AI generation Canvas JSON should be stored in Vercel Blob, and the saved blob URL should be stored on the Prisma project record.
+Add autosave and loading for the collaborative canvas so project state is persisted before adding AI generation. Canvas JSON should be stored through the configured artifact storage provider, and the provider object reference should be stored on the Prisma project record.
 
 ## What to Install
 
-- `@vercel/blob`
+- configured artifact storage provider
 
 ## Implementation
 
@@ -15,13 +15,13 @@ Add autosave and loading for the collaborative canvas so project state is persis
    Create: `PUT /api/projects/[projectId]/canvas`
    This route should:
    - receive the latest canvas JSON
-   - upload the JSON to Vercel Blob
+   - upload the JSON to artifact storage
    - store the returned blob URL on the matching Prisma project record
 
    Create: `GET /api/projects/[projectId]/canvas`
    This route should:
    - read the project’s saved blob URL from Prisma
-   - fetch the saved canvas JSON from Vercel Blob
+   - fetch the saved canvas JSON from artifact storage
    - return the canvas state to the editor
 
 3. Add an autosave hook in the `/hook` folder.
@@ -41,13 +41,13 @@ Add autosave and loading for the collaborative canvas so project state is persis
 ## Storage Pattern
 
 - Prisma stores project metadata and the canvas blob URL.
-- Vercel Blob stores the actual canvas JSON.
+- The storage provider stores the actual canvas JSON.
 
 ## Check When Done
 
-- `@vercel/blob` is installed.
+- A storage provider implementation is available.
 - Project schema supports storing the canvas blob URL.
-- Save/load routes use Prisma for metadata and Vercel Blob for canvas JSON.
+- Save/load routes use Prisma for metadata and the storage provider for canvas JSON.
 - Autosave hook debounces canvas saves.
 - Editor shows save status.
 - Saved canvas does not load if the room already has

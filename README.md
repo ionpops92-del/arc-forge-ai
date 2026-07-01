@@ -72,6 +72,8 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 - **[PostgreSQL](https://www.postgresql.org/)** is an advanced, open-source object-relational database system widely recognized for its reliability, extensibility, and standard compliance. It provides the persistent storage layer for your application, supporting complex queries, transactional integrity, and large-scale data handling.
 
+- **Provider-Agnostic Artifact Storage** stores canvas snapshots and generated Markdown specs through a shared storage provider contract. Local development defaults to filesystem storage under `.local-storage`; Vercel Blob can be enabled as an optional external object store.
+
 - **[Tailwind CSS](https://tailwindcss.com/)** is a utility-first CSS framework that enables rapid custom UI development. By utilizing low-level utility classes directly in your markup, it removes the need to switch between CSS and HTML files, allowing for highly consistent and responsive design systems.
 
 - **[shadcn/ui](https://ui.shadcn.com/)** is a collection of beautifully designed, accessible, and re-usable UI components that you can copy and paste directly into your projects. Built on top of Radix UI and Tailwind CSS, it grants you full control over your component code, avoiding the bloat of traditional component libraries.
@@ -90,13 +92,13 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 👉 **AI Spec Generation**: One click converts the current graph into a detailed Markdown technical specification using a second Gemini-powered internal task.
 
-👉 **Multi-Spec Storage**: Each project stores multiple specs. Metadata lives in PostgreSQL (Prisma); content is stored as Markdown files in Vercel Blob.
+👉 **Multi-Spec Storage**: Each project stores multiple specs. Metadata lives in PostgreSQL (Prisma); Markdown content is stored through the configured artifact storage provider.
 
 👉 **Downloadable Specs**: Every generated spec is available via a dedicated download API route.
 
 👉 **Internal Authentication**: Server-side session checks protect app routes and API routes; realtime room tokens are only issued after project access is verified.
 
-👉 **Auto-Save Canvas**: The canvas state is debounced-saved to Vercel Blob.
+👉 **Auto-Save Canvas**: The canvas state is debounced-saved through the configured artifact storage provider.
 
 👉 **Project Management**: Create projects from a slide-in sidebar; project slugs auto-generate room IDs; the active room is highlighted.
 
@@ -149,6 +151,12 @@ INTERNAL_REALTIME_SERVICE_SECRET=arc-forge-local-realtime-service-secret-change-
 INTERNAL_REALTIME_INTERNAL_URL=http://localhost:3001/internal/broadcast
 
 DATABASE_URL=
+
+# Local artifact storage default
+STORAGE_PROVIDER=local_fs
+LOCAL_STORAGE_ROOT=.local-storage
+
+# Optional: required only when STORAGE_PROVIDER=vercel_blob
 BLOB_READ_WRITE_TOKEN=
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -163,7 +171,7 @@ GEMINI_SPEC_MODEL=
 ━━━━━━━━━━━━━━━━━━━━
 ```
 
-Replace the placeholder values with your real credentials where required. You can get service keys from [**Vercel Blob**](https://vercel.com/docs/vercel-blob) and [**Google AI Studio**](https://aistudio.google.com/). Local `http://` and `ws://` URLs are local-only. Browser code uses `NEXT_PUBLIC_APP_ENV=local` to permit localhost WS during local development; staging, preview, and production must use HTTPS and WSS.
+Replace the placeholder values with your real credentials where required. Local development uses filesystem artifact storage by default and does not require `BLOB_READ_WRITE_TOKEN`. If you set `STORAGE_PROVIDER=vercel_blob`, add a Vercel Blob token. Gemini-backed AI features require a key from [**Google AI Studio**](https://aistudio.google.com/). Local `http://` and `ws://` URLs are local-only. Browser code uses `NEXT_PUBLIC_APP_ENV=local` to permit localhost WS during local development; staging, preview, and production must use HTTPS and WSS.
 
 **Running the Project**
 
@@ -173,7 +181,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser to view the project.
 
-For the full local Docker stack, start PostgreSQL, the app, the AI worker, and realtime service together:
+For the full local Docker stack, start PostgreSQL, the app, the AI worker, realtime service, and persistent local artifact storage together:
 
 ```bash
 npm run stack:local:up
@@ -208,6 +216,7 @@ npm run realtime:server
 | `npm run worker:local:logs` | Tail local AI worker logs           |
 | `npm run realtime:local:logs` | Tail local realtime service logs  |
 | `npm run realtime:server` | Run the internal realtime WebSocket server |
+| `npm run test:storage`    | Smoke-test the storage provider contract |
 | `npm run prisma:generate` | Regenerate Prisma client              |
 | `npm run prisma:migrate`  | Create and apply a new migration      |
 | `npm run prisma:deploy`   | Apply pending migrations (production) |
@@ -233,6 +242,7 @@ npm run realtime:server
 ├── lib/                  # Shared utilities (Prisma client, auth, AI tasks)
 │   └── ai-tasks/         # Internal AI task service, handlers, worker loop
 │   └── realtime/         # Internal realtime token, protocol, and server modules
+│   └── storage/          # Provider-agnostic artifact storage
 ├── prisma/               # Prisma schema and migrations
 ├── scripts/
 │   ├── ai-worker.ts      # Internal AI worker entrypoint

@@ -38,7 +38,8 @@
 ## Data and Storage
 
 - Project metadata and relationships belong in PostgreSQL via Prisma.
-- Canvas snapshots and generated specs belong in Vercel Blob; Prisma stores only the blob URL reference.
+- Canvas snapshots and generated specs belong in the configured artifact storage provider; Prisma stores only the provider object reference.
+- Local filesystem storage must remain scoped under `LOCAL_STORAGE_ROOT` and must reject traversal outside that root.
 - Do not store large generated content directly in the database.
 - Task run records are first-class relational data — treat ownership and run IDs as verified before any token issuance.
 - Realtime room event records are foundation data for the internal collaboration engine; keep them compact and scoped by project/room/user.

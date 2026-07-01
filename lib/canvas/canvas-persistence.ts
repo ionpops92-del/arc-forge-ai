@@ -1,4 +1,3 @@
-import { get, put } from "@vercel/blob"
 import { prisma } from "@/lib/prisma"
 import {
   type CanvasSnapshot,
@@ -6,12 +5,8 @@ import {
   sanitizeCanvasSnapshot,
   serializeCanvasSnapshot,
 } from "@/lib/canvas/canvas-state"
-
-function requireBlobToken() {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error("Missing Vercel Blob read/write token.")
-  }
-}
+import { canvasSnapshotObjectPath } from "@/lib/storage/paths"
+import { getStorageProvider } from "@/lib/storage/storage-provider"
 
 export async function readCanvasSnapshot(projectId: string): Promise<CanvasSnapshot | null> {
   const project = await prisma.project.findUnique({
@@ -21,11 +16,9 @@ export async function readCanvasSnapshot(projectId: string): Promise<CanvasSnaps
 
   if (!project?.canvasBlobUrl) return null
 
-  requireBlobToken()
-  const result = await get(project.canvasBlobUrl, { access: "private" })
-  if (!result || result.statusCode !== 200 || !result.stream) return null
-
-  const canvas: unknown = await new Response(result.stream).json().catch(() => null)
+  const canvas: unknown = await getStorageProvider()
+    .readJsonObject(project.canvasBlobUrl)
+    .catch(() => null)
   return canvas ? sanitizeCanvasSnapshot(canvas) : emptyCanvasSnapshot()
 }
 
@@ -33,19 +26,19 @@ export async function writeCanvasSnapshot(
   projectId: string,
   snapshot: CanvasSnapshot
 ) {
-  requireBlobToken()
   const canvas = serializeCanvasSnapshot(snapshot)
-  const blob = await put(`canvas/${projectId}.json`, JSON.stringify(canvas), {
-    access: "private",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  })
+  const reference = await getStorageProvider().writeJsonObject(
+    canvasSnapshotObjectPath(projectId),
+    canvas,
+    {
+      contentType: "application/json",
+    }
+  )
 
   await prisma.project.update({
     where: { id: projectId },
-    data: { canvasBlobUrl: blob.url },
+    data: { canvasBlobUrl: reference },
   })
 
-  return { url: blob.url, canvas }
+  return { url: reference, reference, canvas }
 }

@@ -14,6 +14,9 @@
 # Trigger.dev generated output
 .trigger/tmp/
 
+# Local artifact storage output
+.local-storage/
+
 # testing
 /coverage
 
