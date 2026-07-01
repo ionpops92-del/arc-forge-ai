@@ -48,7 +48,7 @@ If you prefer visual learning, this is the perfect resource for you. Follow our 
 
 ## <a name="introduction">✨ Introduction</a>
 
-Ghost Arc is an agentic planning application built for software teams. A user submits a natural-language prompt (e.g., "Design a scalable e-commerce backend") and a Google Gemini-powered AI agent autonomously places nodes and edges onto a shared React Flow canvas in real-time. Human teammates can watch the AI build the diagram live, then jump in to collaboratively refine it. Once the team is satisfied, a second AI background task converts the visual graph into a comprehensive, multi-page Markdown technical specification that can be downloaded directly from the app.
+Ghost Arc is an agentic planning application built for software teams. A user submits a natural-language prompt (e.g., "Design a scalable e-commerce backend") and a provider-backed AI agent autonomously places nodes and edges onto a shared React Flow canvas in real-time. Human teammates can watch the AI build the diagram live, then jump in to collaboratively refine it. Once the team is satisfied, a second AI background task converts the visual graph into a comprehensive, multi-page Markdown technical specification that can be downloaded directly from the app. Local development uses a deterministic mock AI provider by default, while Google Gemini and OpenAI-compatible APIs can be selected through server-side environment variables.
 
 If you're getting started and need assistance or face any bugs, join our active Discord community with over **50k+** members. It's a place where people help each other out.
 
@@ -66,6 +66,8 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 - **Internal AI Task Runner** is a PostgreSQL-backed worker system for durable AI jobs. API routes enqueue task runs after auth/project checks, and a separate worker leases queued runs, records attempts/events, handles retries, and executes design/spec handlers.
 
+- **Provider-Agnostic AI Runtime** routes design and spec generation through a server-side provider contract. Local development defaults to `AI_PROVIDER=mock`, Google Gemini remains available with `AI_PROVIDER=google`, and hosted or self-hosted OpenAI-compatible APIs can be used with `AI_PROVIDER=openai_compatible`.
+
 - **Internal Realtime Engine** is a standalone Node/WebSocket service backed by PostgreSQL. It issues short-lived room tokens through authenticated Next.js APIs, verifies room access, tracks ephemeral presence, syncs canvas snapshots, and broadcasts typed chat/status room events. React Flow remains the canvas renderer.
 
 - **[Prisma ORM](https://www.prisma.io/)** is a next-generation ORM for Node.js and TypeScript that simplifies database interactions. By providing a type-safe client generated from your schema, it makes querying your database intuitive, readable, and highly efficient, effectively eliminating common SQL-related runtime errors.
@@ -82,7 +84,7 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 ## <a name="features">🔋 Features</a>
 
-👉 **AI Architecture Agent**: Submit a plain-English prompt; Gemini draws nodes and edges onto the live canvas in real time via the internal AI worker and internal realtime engine.
+👉 **AI Architecture Agent**: Submit a plain-English prompt; the configured AI provider draws nodes and edges onto the live canvas in real time via the internal AI worker and internal realtime engine. Local mock AI works without external keys.
 
 👉 **Multiplayer Canvas**: Full real-time collaboration powered by the internal WebSocket engine: synchronized node/edge state, live cursor positions, and presence avatars for connected users.
 
@@ -90,7 +92,7 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 👉 **Custom Canvas Nodes**: Double-click to edit node labels inline; select to resize with NodeResizer; choose from 12 colour swatches via a floating NodeToolbar — all synced across clients instantly.
 
-👉 **AI Spec Generation**: One click converts the current graph into a detailed Markdown technical specification using a second Gemini-powered internal task.
+👉 **AI Spec Generation**: One click converts the current graph into a detailed Markdown technical specification using the configured AI provider.
 
 👉 **Multi-Spec Storage**: Each project stores multiple specs. Metadata lives in PostgreSQL (Prisma); Markdown content is stored through the configured artifact storage provider.
 
@@ -159,19 +161,23 @@ LOCAL_STORAGE_ROOT=.local-storage
 # Optional: required only when STORAGE_PROVIDER=vercel_blob
 BLOB_READ_WRITE_TOKEN=
 
-━━━━━━━━━━━━━━━━━━━━
-# Google
-GOOGLE_AI_API_KEY=
-# Legacy alias also supported: GOOGLE_GENERATIVE_AI_API_KEY
-# Optional: override the default Gemini model (default: gemini-2.0-flash)
-GEMINI_MODEL=
-# Optional: override model used specifically for spec generation
-GEMINI_SPEC_MODEL=
+# Local AI provider default: no external key required
+AI_PROVIDER=mock
 
-━━━━━━━━━━━━━━━━━━━━
+# Optional: required only when AI_PROVIDER=google
+GOOGLE_AI_API_KEY=
+GOOGLE_GENERATIVE_AI_API_KEY=
+GOOGLE_AI_MODEL=gemini-2.5-flash
+GOOGLE_AI_SPEC_MODEL=gemini-2.5-flash
+
+# Optional: required only when AI_PROVIDER=openai_compatible
+AI_API_KEY=
+AI_BASE_URL=
+AI_MODEL=
+AI_SPEC_MODEL=
 ```
 
-Replace the placeholder values with your real credentials where required. Local development uses filesystem artifact storage by default and does not require `BLOB_READ_WRITE_TOKEN`. If you set `STORAGE_PROVIDER=vercel_blob`, add a Vercel Blob token. Gemini-backed AI features require a key from [**Google AI Studio**](https://aistudio.google.com/). Local `http://` and `ws://` URLs are local-only. Browser code uses `NEXT_PUBLIC_APP_ENV=local` to permit localhost WS during local development; staging, preview, and production must use HTTPS and WSS.
+Replace the placeholder values with your real credentials where required. Local development uses filesystem artifact storage and mock AI by default, so it does not require `BLOB_READ_WRITE_TOKEN`, `GOOGLE_AI_API_KEY`, or OpenAI-compatible credentials for smoke testing. If you set `STORAGE_PROVIDER=vercel_blob`, add a Vercel Blob token. If you set `AI_PROVIDER=google`, add a key from [**Google AI Studio**](https://aistudio.google.com/). If you set `AI_PROVIDER=openai_compatible`, set `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL`; `AI_SPEC_MODEL` defaults to `AI_MODEL`. Local `http://` and `ws://` URLs are local-only. Browser code uses `NEXT_PUBLIC_APP_ENV=local` to permit localhost WS during local development; staging, preview, and production must use HTTPS and WSS.
 
 **Running the Project**
 
@@ -217,6 +223,7 @@ npm run realtime:server
 | `npm run realtime:local:logs` | Tail local realtime service logs  |
 | `npm run realtime:server` | Run the internal realtime WebSocket server |
 | `npm run test:storage`    | Smoke-test the storage provider contract |
+| `npm run test:ai-providers` | Smoke-test AI provider selection and mock behavior |
 | `npm run prisma:generate` | Regenerate Prisma client              |
 | `npm run prisma:migrate`  | Create and apply a new migration      |
 | `npm run prisma:deploy`   | Apply pending migrations (production) |
@@ -241,6 +248,7 @@ npm run realtime:server
 ├── hooks/                # Custom React hooks (auto-save, keyboard shortcuts)
 ├── lib/                  # Shared utilities (Prisma client, auth, AI tasks)
 │   └── ai-tasks/         # Internal AI task service, handlers, worker loop
+│   └── ai/               # AI provider contracts, provider adapters, design/spec helpers
 │   └── realtime/         # Internal realtime token, protocol, and server modules
 │   └── storage/          # Provider-agnostic artifact storage
 ├── prisma/               # Prisma schema and migrations

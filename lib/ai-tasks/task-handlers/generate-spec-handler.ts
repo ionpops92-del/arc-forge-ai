@@ -1,116 +1,34 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google"
-import { generateText } from "ai"
 import { randomUUID } from "node:crypto"
 import { z } from "zod"
-import { getGoogleAiApiKey } from "@/lib/ai/google-api-key"
+import { getAiProvider } from "@/lib/ai/providers/provider-factory"
+import {
+  AiSpecChatMessageSchema,
+  AiSpecEdgeSchema,
+  AiSpecNodeSchema,
+} from "@/lib/ai/spec/spec-provider-contract"
 import { prisma } from "@/lib/prisma"
 import { specMarkdownObjectPath } from "@/lib/storage/paths"
 import { getStorageProvider } from "@/lib/storage/storage-provider"
 
-const chatMessageSchema = z.object({
-  role: z.enum(["user", "assistant"]),
-  content: z.string(),
-})
-
-const nodeDataSchema = z
-  .object({
-    label: z.string().optional(),
-    shape: z.string().optional(),
-    color: z.string().optional(),
-  })
-  .passthrough()
-
-const nodeSchema = z
-  .object({
-    id: z.string(),
-    type: z.string().optional(),
-    position: z.object({ x: z.number(), y: z.number() }).optional(),
-    data: nodeDataSchema.optional(),
-  })
-  .passthrough()
-
-const edgeSchema = z
-  .object({
-    id: z.string(),
-    source: z.string(),
-    target: z.string(),
-    data: z.object({ label: z.string().optional() }).passthrough().optional(),
-  })
-  .passthrough()
-
 export const GenerateSpecPayloadSchema = z.object({
   projectId: z.string(),
   roomId: z.string(),
-  chatHistory: z.array(chatMessageSchema),
-  nodes: z.array(nodeSchema),
-  edges: z.array(edgeSchema),
+  chatHistory: z.array(AiSpecChatMessageSchema),
+  nodes: z.array(AiSpecNodeSchema),
+  edges: z.array(AiSpecEdgeSchema),
 })
 
 export type GenerateSpecPayload = z.infer<typeof GenerateSpecPayloadSchema>
-type Node = z.infer<typeof nodeSchema>
-type Edge = z.infer<typeof edgeSchema>
-type ChatMessage = z.infer<typeof chatMessageSchema>
-
-function buildContext(nodes: Node[], edges: Edge[], chatHistory: ChatMessage[]): string {
-  const nodeLines = nodes
-    .map((n) => {
-      const label = n.data?.label ?? n.id
-      const shape = n.data?.shape ?? "rectangle"
-      const pos = n.position
-        ? ` at (${Math.round(n.position.x)}, ${Math.round(n.position.y)})`
-        : ""
-      return `- ${label} (id: ${n.id}, shape: ${shape}${pos})`
-    })
-    .join("\n")
-
-  const edgeLines = edges
-    .map((e) => {
-      const label = e.data?.label ? ` [${e.data.label}]` : ""
-      return `- ${e.source} -> ${e.target}${label}`
-    })
-    .join("\n")
-
-  const chatLines = chatHistory
-    .map((m) => `${m.role === "user" ? "User" : "Ghost AI"}: ${m.content}`)
-    .join("\n")
-
-  return [
-    "## Canvas Nodes",
-    nodeLines || "(none)",
-    "",
-    "## Canvas Connections",
-    edgeLines || "(none)",
-    "",
-    "## Chat History",
-    chatLines || "(none)",
-  ].join("\n")
-}
-
-const SYSTEM_PROMPT = `You are Ghost AI, a senior technical architect. Generate a comprehensive Markdown technical specification document based on the provided architecture canvas and conversation context.
-
-Structure the spec as follows:
-1. **Overview** - What the system does and its key goals
-2. **Architecture** - High-level architecture description based on the canvas
-3. **Components** - Each node/service with its role and responsibilities
-4. **Data Flow** - How data and requests move through the system
-5. **Technology Choices** - Suggested technologies that fit the architecture
-6. **Key Considerations** - Scalability, security, and performance notes
-
-Write in clear, professional technical language. Use Markdown headers, bullet points, and code blocks where appropriate. Be specific and actionable.`
 
 export async function runGenerateSpecTask(payload: GenerateSpecPayload) {
-  const googleApiKey = getGoogleAiApiKey()
-
-  const google = createGoogleGenerativeAI({ apiKey: googleApiKey })
-  const context = buildContext(payload.nodes, payload.edges, payload.chatHistory)
-
-  const result = await generateText({
-    model: google("gemini-2.5-flash"),
-    system: SYSTEM_PROMPT,
-    prompt: context,
+  const spec = await getAiProvider().generateSpecMarkdown({
+    projectId: payload.projectId,
+    roomId: payload.roomId,
+    chatHistory: payload.chatHistory,
+    nodes: payload.nodes,
+    edges: payload.edges,
   })
 
-  const spec = result.text
   const specId = randomUUID()
   const filePath = await getStorageProvider().writeTextObject(
     specMarkdownObjectPath(payload.projectId, specId),

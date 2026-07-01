@@ -7,6 +7,7 @@ This setup runs the full local development stack in Docker Compose:
 - Internal AI worker for queued design/spec tasks
 - Internal realtime WebSocket service on `http://localhost:3001` with browser WebSocket URL `ws://localhost:3001/ws`
 - Local filesystem artifact storage under `.local-storage`
+- Deterministic mock AI provider for local design/spec tasks with no external AI key
 
 Pressing Play for `docker-compose.local.yml` in Docker Desktop starts all services.
 
@@ -51,7 +52,7 @@ You can also press Play in Docker Desktop for `docker-compose.local.yml`.
 
 The app container installs dependencies if needed, generates Prisma Client, applies committed migrations with `prisma migrate deploy`, then starts Next.js on `0.0.0.0:3000`.
 
-The worker container waits for the app healthcheck, then starts the internal PostgreSQL-backed AI task runner.
+The worker container waits for the app healthcheck, then starts the internal PostgreSQL-backed AI task runner. Docker local mode sets `AI_PROVIDER=mock`, so design and spec tasks complete deterministically without Google, OpenAI-compatible, or other external AI credentials.
 
 The realtime container waits for PostgreSQL and the app healthcheck, then starts the internal WebSocket service. It provides authenticated room tokens, room joins, presence updates, chat/status events, canvas synchronization, and bounded payload handling. React Flow remains the canvas renderer.
 
@@ -140,19 +141,22 @@ With only the Docker PostgreSQL database and internal auth defaults, you can use
 - internal realtime token issuance, realtime health checks, presence, chat/status events, and canvas synchronization
 - canvas autosave and reload through local filesystem artifact storage
 - secure spec preview/download routes for specs stored through the local provider
+- deterministic mock AI design and spec generation through the internal task worker
 
 ## Keys Needed For Full Behavior
 
-Full local artifact persistence does not require an external object storage key. Full Gemini-backed AI behavior still requires an AI key in `.env.local`:
+Full local artifact persistence does not require an external object storage key. Local AI smoke does not require an external AI key because `AI_PROVIDER=mock` is the default:
 
 - `INTERNAL_REALTIME_TOKEN_SECRET` for internal realtime room token signing. Docker local mode provides a development-only placeholder if no local value is set.
 - `INTERNAL_REALTIME_SERVICE_SECRET` for app/worker-to-realtime internal publish calls. Docker local mode provides a development-only placeholder if no local value is set.
 - `NEXT_PUBLIC_APP_ENV=local` and `NEXT_PUBLIC_REALTIME_URL=ws://localhost:3001/ws` for local browser realtime connections.
 - `STORAGE_PROVIDER=local_fs` and `LOCAL_STORAGE_ROOT=.local-storage` for host-side local artifact storage. Docker overrides the root to `/app/.local-storage`.
 - `BLOB_READ_WRITE_TOKEN` only when `STORAGE_PROVIDER=vercel_blob`.
-- `GOOGLE_AI_API_KEY` for Gemini-backed AI design/spec generation.
+- `AI_PROVIDER=mock` for deterministic local design/spec generation without external keys.
+- `AI_PROVIDER=google` plus `GOOGLE_AI_API_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY` for Gemini-backed design/spec generation. `GOOGLE_AI_MODEL` and `GOOGLE_AI_SPEC_MODEL` can override the default `gemini-2.5-flash`.
+- `AI_PROVIDER=openai_compatible` plus `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL` for hosted or self-hosted OpenAI-compatible APIs. `AI_SPEC_MODEL` defaults to `AI_MODEL` when omitted.
 
-Without Google keys, local auth, database-backed project flows, realtime room connectivity, canvas persistence, and provider-backed spec preview/download can still be tested. Gemini calls fail individual queued tasks safely without stopping the worker. The internal realtime service can be health-checked at:
+Without external AI keys, local auth, database-backed project flows, realtime room connectivity, canvas persistence, mock AI design/spec tasks, and provider-backed spec preview/download can be tested. If an external provider is selected without required env, individual queued tasks fail safely without stopping the worker. The internal realtime service can be health-checked at:
 
 ```text
 http://localhost:3001/health

@@ -51,10 +51,14 @@
 - Local development may use `http://localhost` and `ws://localhost`; non-local environments require `https://` and `wss://`.
 - Do not guess production URLs, downgrade secure URLs, or fall back to localhost outside explicit local mode.
 - Never log realtime tokens, session cookies, internal service secrets, or signed token values.
+- `AI_PROVIDER` defaults to `mock`; external AI keys must only be required when their provider is selected.
+- AI provider keys are server-only and must never use `NEXT_PUBLIC_` prefixes.
+- Validate structured AI output before applying it to canvas state.
 
 ## File Organization
 
 - `lib/` — shared infrastructure: Prisma client, auth helpers, utilities.
+- `lib/ai/` — AI provider contracts, provider factory, provider adapters, and design/spec use-case helpers.
 - `lib/ai-tasks/` — durable AI task leasing, handlers, and worker orchestration.
 - `lib/realtime/` — signed room tokens, protocol types, access checks, room state, and standalone WebSocket server logic.
 - `scripts/ai-worker.ts` — AI worker process entrypoint.

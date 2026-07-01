@@ -50,13 +50,14 @@ Ghost AI is a real-time collaborative system design workspace. Users describe a 
 
 ### AI Architecture Generation
 
-- AI generates a system design from a user-supplied prompt.
+- AI generates a system design from a user-supplied prompt through the configured AI provider.
+- Local development uses a deterministic mock AI provider by default; Google Gemini and OpenAI-compatible providers can be selected with server-side environment variables.
 - Output is structured as canvas nodes and edges persisted to canvas storage and published through the internal realtime room.
 - Generation runs as a durable PostgreSQL-backed background task.
 
 ### Spec Generation
 
-- The current canvas graph is converted into a Markdown technical specification.
+- The current canvas graph is converted into a Markdown technical specification through the configured AI provider.
 - Specs are persisted through the configured artifact storage provider and linked to the project in the database.
 - Users can view and download generated specs.
 
