@@ -1,9 +1,11 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
-import { put } from "@vercel/blob"
 import { generateText } from "ai"
+import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { getGoogleAiApiKey } from "@/lib/ai/google-api-key"
 import { prisma } from "@/lib/prisma"
+import { specMarkdownObjectPath } from "@/lib/storage/paths"
+import { getStorageProvider } from "@/lib/storage/storage-provider"
 
 const chatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -48,12 +50,6 @@ export type GenerateSpecPayload = z.infer<typeof GenerateSpecPayloadSchema>
 type Node = z.infer<typeof nodeSchema>
 type Edge = z.infer<typeof edgeSchema>
 type ChatMessage = z.infer<typeof chatMessageSchema>
-
-function requireBlobToken() {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error("Missing Vercel Blob read/write token.")
-  }
-}
 
 function buildContext(nodes: Node[], edges: Edge[], chatHistory: ChatMessage[]): string {
   const nodeLines = nodes
@@ -104,7 +100,6 @@ Write in clear, professional technical language. Use Markdown headers, bullet po
 
 export async function runGenerateSpecTask(payload: GenerateSpecPayload) {
   const googleApiKey = getGoogleAiApiKey()
-  requireBlobToken()
 
   const google = createGoogleGenerativeAI({ apiKey: googleApiKey })
   const context = buildContext(payload.nodes, payload.edges, payload.chatHistory)
@@ -116,18 +111,18 @@ export async function runGenerateSpecTask(payload: GenerateSpecPayload) {
   })
 
   const spec = result.text
-
-  const blob = await put(`specs/${payload.projectId}/${Date.now()}.md`, spec, {
-    access: "private",
-    contentType: "text/markdown",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  })
+  const specId = randomUUID()
+  const filePath = await getStorageProvider().writeTextObject(
+    specMarkdownObjectPath(payload.projectId, specId),
+    spec,
+    { contentType: "text/markdown; charset=utf-8" }
+  )
 
   const record = await prisma.projectSpec.create({
     data: {
+      id: specId,
       projectId: payload.projectId,
-      filePath: blob.url,
+      filePath,
     },
   })
 

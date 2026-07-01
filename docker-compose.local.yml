@@ -37,8 +37,11 @@ services:
       INTERNAL_REALTIME_TOKEN_SECRET: arc-forge-local-realtime-secret-change-me
       INTERNAL_REALTIME_SERVICE_SECRET: arc-forge-local-realtime-service-secret-change-me
       INTERNAL_REALTIME_INTERNAL_URL: http://realtime:3001/internal/broadcast
+      STORAGE_PROVIDER: local_fs
+      LOCAL_STORAGE_ROOT: /app/.local-storage
     volumes:
       - .:/app
+      - ./.local-storage:/app/.local-storage
       - arc-forge-ai-node-modules:/app/node_modules
       - arc-forge-ai-next-cache:/app/.next
     command: >
@@ -54,6 +57,8 @@ services:
       export INTERNAL_REALTIME_TOKEN_SECRET=$${INTERNAL_REALTIME_TOKEN_SECRET:-arc-forge-local-realtime-secret-change-me} &&
       export INTERNAL_REALTIME_SERVICE_SECRET=$${INTERNAL_REALTIME_SERVICE_SECRET:-arc-forge-local-realtime-service-secret-change-me} &&
       export INTERNAL_REALTIME_INTERNAL_URL='http://realtime:3001/internal/broadcast' &&
+      export STORAGE_PROVIDER='local_fs' &&
+      export LOCAL_STORAGE_ROOT='/app/.local-storage' &&
       npm install &&
       npx prisma generate &&
       npx prisma migrate deploy &&
@@ -87,8 +92,11 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       INTERNAL_REALTIME_SERVICE_SECRET: arc-forge-local-realtime-service-secret-change-me
       INTERNAL_REALTIME_INTERNAL_URL: http://realtime:3001/internal/broadcast
+      STORAGE_PROVIDER: local_fs
+      LOCAL_STORAGE_ROOT: /app/.local-storage
     volumes:
       - .:/app
+      - ./.local-storage:/app/.local-storage
       - arc-forge-ai-node-modules:/app/node_modules
     command: >
       sh -c "set -a &&
@@ -100,6 +108,8 @@ services:
       export NEXT_TELEMETRY_DISABLED=1 &&
       export INTERNAL_REALTIME_SERVICE_SECRET=$${INTERNAL_REALTIME_SERVICE_SECRET:-arc-forge-local-realtime-service-secret-change-me} &&
       export INTERNAL_REALTIME_INTERNAL_URL='http://realtime:3001/internal/broadcast' &&
+      export STORAGE_PROVIDER='local_fs' &&
+      export LOCAL_STORAGE_ROOT='/app/.local-storage' &&
       npm run ai:worker"
 
   realtime:

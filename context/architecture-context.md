@@ -11,7 +11,7 @@
 | Canvas           | React Flow              | Permanent canvas renderer and interaction layer                |
 | Realtime         | Internal WebSocket service | Collaboration runtime for room tokens, presence, canvas sync, chat/status events |
 | Background tasks | Internal AI task runner | PostgreSQL-backed durable AI generation workflows              |
-| Artifact storage | Vercel Blob             | Canvas snapshots and generated Markdown specs                  |
+| Artifact storage | Storage provider        | Canvas snapshots and generated Markdown specs                  |
 
 ## System Boundaries
 
@@ -28,10 +28,11 @@
 ## Storage Model
 
 - **Database**: metadata, ownership, relationships, AI task runs/events/attempts, realtime room events, and project spec records.
-- **Vercel Blob**: generated artifacts — canvas snapshots at `canvas/{projectId}.json` and specs at `specs/{projectId}/{specId}.md`.
+- **Storage provider**: generated artifacts — canvas snapshots at `canvas/{projectId}.json` and specs at `specs/{projectId}/{specId}.md`.
 - Project records, spec records, AI task run records, and internal realtime room events belong in PostgreSQL.
-- Canvas content and Markdown output are stored in and retrieved from Vercel Blob.
-- The blob URL is stored in the database (`canvasBlobUrl`, `filePath`) as the reference to the artifact.
+- Canvas content and Markdown output are stored in and retrieved from the configured artifact storage provider.
+- Local development defaults to filesystem storage under `.local-storage`; external object storage such as Vercel Blob is optional.
+- The database stores only the provider object reference in the existing `canvasBlobUrl` and `filePath` fields.
 
 ## Auth and Collaboration Model
 
@@ -59,13 +60,13 @@
 
 - Input: user prompt, project context, and current canvas state.
 - Execution: durable background task via the internal PostgreSQL-backed AI task runner.
-- Output: structured node and edge updates written to Vercel Blob canvas state and published into the internal realtime room.
+- Output: structured node and edge updates written to provider-backed canvas state and published into the internal realtime room.
 
 ### Spec Generation
 
 - Input: current canvas graph and project context.
 - Execution: durable background task via the internal PostgreSQL-backed AI task runner.
-- Output: Markdown technical spec saved to Vercel Blob and linked to the project in the database.
+- Output: Markdown technical spec saved through the storage provider and linked to the project in the database.
 
 ## Invariants
 
