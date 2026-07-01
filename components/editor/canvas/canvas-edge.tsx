@@ -78,25 +78,28 @@ export function CanvasEdgeComponent({
     [labels]
   )
 
-  const commitEdit = useCallback(() => {
-    if (editingTarget === null) return
+  const commitEdit = useCallback(
+    (nextValue?: string) => {
+      if (editingTarget === null) return
 
-    const value = draftLabel.trim()
-    if (editingTarget === "new") {
-      if (value) updateLabels([...labels, value])
-    } else {
-      const nextLabels = [...labels]
-      if (value) {
-        nextLabels[editingTarget] = value
+      const value = (nextValue ?? draftLabel).trim()
+      if (editingTarget === "new") {
+        if (value) updateLabels([...labels, value])
       } else {
-        nextLabels.splice(editingTarget, 1)
+        const nextLabels = [...labels]
+        if (value) {
+          nextLabels[editingTarget] = value
+        } else {
+          nextLabels.splice(editingTarget, 1)
+        }
+        updateLabels(nextLabels)
       }
-      updateLabels(nextLabels)
-    }
 
-    setEditingTarget(null)
-    setDraftLabel("")
-  }, [draftLabel, editingTarget, labels, updateLabels])
+      setEditingTarget(null)
+      setDraftLabel("")
+    },
+    [draftLabel, editingTarget, labels, updateLabels]
+  )
 
   const deleteLabel = useCallback(
     (index: number) => (event: React.MouseEvent) => {
@@ -112,7 +115,7 @@ export function CanvasEdgeComponent({
       event.stopPropagation()
       if (event.key === "Enter") {
         event.preventDefault()
-        event.currentTarget.blur()
+        commitEdit(event.currentTarget.value)
       }
       if (event.key === "Escape") {
         event.preventDefault()
@@ -120,7 +123,7 @@ export function CanvasEdgeComponent({
         setDraftLabel("")
       }
     },
-    []
+    [commitEdit]
   )
 
   return (
@@ -167,7 +170,7 @@ export function CanvasEdgeComponent({
                   autoFocus
                   value={draftLabel}
                   onChange={(event) => setDraftLabel(event.target.value)}
-                  onBlur={commitEdit}
+                  onBlur={(event) => commitEdit(event.currentTarget.value)}
                   onKeyDown={handleKeyDown}
                   onFocus={(event) => event.target.select()}
                   className="w-28 bg-transparent text-center text-xs text-text-primary outline-none"
@@ -203,7 +206,7 @@ export function CanvasEdgeComponent({
               autoFocus
               value={draftLabel}
               onChange={(event) => setDraftLabel(event.target.value)}
-              onBlur={commitEdit}
+              onBlur={(event) => commitEdit(event.currentTarget.value)}
               onKeyDown={handleKeyDown}
               onFocus={(event) => event.target.select()}
               className="w-32 rounded-full border border-accent-ai/40 bg-bg-surface px-3 py-1 text-center text-xs text-text-primary shadow-xl outline-none"
