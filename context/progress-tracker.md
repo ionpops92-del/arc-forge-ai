@@ -6,7 +6,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Self-Owned Infrastructure Foundation
 
 ## Current Goal
-- Continue replacing hosted/runtime infrastructure dependencies with internal, PostgreSQL-backed services while preserving the product experience.
+- Stabilize the self-owned runtime foundation, harden production deployment paths, and polish collaboration reliability while preserving the product experience.
 
 ## Completed
 
@@ -52,7 +52,7 @@ The numbered feature notes below are historical implementation notes. They descr
 
 ## In Progress
 
-- Provider-Agnostic AI Runtime Rollout — use deterministic local AI by default while keeping external AI services selectable behind the provider contract.
+- Foundation stabilization and production hardening — verify the internal auth, AI task runner, realtime, storage, and AI provider foundation under realistic local workflows, then tighten deployment guidance and operational edge cases.
 
 ## Next Up
 - Realtime collaboration stabilization, including conflict handling, reconnection polish, event replay strategy, and production reverse-proxy guidance.
