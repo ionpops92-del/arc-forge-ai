@@ -89,6 +89,17 @@ Small white circular handles, hidden by default, revealed on node hover. Appear 
 
 React Flow `<Background>` component. Canvas sits on the base background color.
 
+### Canvas Interaction Model
+
+- Dragging empty canvas selects multiple nodes with a visible selection rectangle.
+- Middle or right-dragging empty canvas pans the viewport; mouse wheel zooms.
+- Node and edge selection is local UI state only and must not be persisted or broadcast.
+- Selected nodes can move as a group, and Delete/Backspace removes selected nodes and edges.
+- Node labels must be editable through an explicit Add/Edit label control as well as double-click.
+- Edge labels must expose a persistent `+` bubble on the edge, support multiple label bubbles, and keep `data.label` mirrored to the first label for compatibility.
+- Existing edges can be reconnected by dragging an endpoint to another compatible node handle.
+- Canvas controls include a compact help popover that explains selection, panning, labels, reconnecting, and saving.
+
 ## Component Library
 
 shadcn/ui on top of Tailwind. No custom design system. Components live in `components/ui/`. Use the `shadcn` CLI to add new components rather than writing them from scratch.

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Handle, Position, NodeResizer, NodeToolbar } from "@xyflow/react"
 import type { NodeProps } from "@xyflow/react"
+import { PencilLine, Plus, Trash2 } from "lucide-react"
 import type { CanvasNode, NodeShape } from "@/types/canvas"
 import { NODE_COLORS } from "@/types/canvas"
 import { useCanvasMutations } from "@/components/editor/canvas/canvas-mutation-context"
@@ -72,6 +73,29 @@ interface ColorSwatchProps {
   onSelect: (fill: string, text: string) => void
 }
 
+interface LabelControlProps {
+  hasLabel: boolean
+  onClick: (event: React.MouseEvent<HTMLElement>) => void
+}
+
+function LabelControl({ hasLabel, onClick }: LabelControlProps) {
+  const Icon = hasLabel ? PencilLine : Plus
+
+  return (
+    <button
+      type="button"
+      className="nodrag nopan flex h-7 items-center gap-1 rounded-full border border-border-subtle bg-bg-elevated px-2 text-[11px] font-medium text-text-secondary transition-colors hover:border-accent-primary/40 hover:text-text-primary"
+      title={hasLabel ? "Edit node label" : "Add node label"}
+      onClick={onClick}
+      onMouseDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <Icon className="h-3 w-3" />
+      {hasLabel ? "Edit label" : "Add label"}
+    </button>
+  )
+}
+
 function ColorSwatch({ pair, isActive, onSelect }: ColorSwatchProps) {
   return (
     <button
@@ -109,10 +133,12 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
   const shape = data.shape ?? "rectangle"
   const stroke = selected ? BORDER_SELECTED : BORDER_REST
   const isSvg = shape === "diamond" || shape === "hexagon" || shape === "cylinder"
+  const hasLabel = Boolean(data.label?.trim())
 
   const [isEditing, setIsEditing] = useState(false)
+  const nodeRef = useRef<HTMLDivElement>(null)
   const editRef = useRef<HTMLDivElement>(null)
-  const { updateNodeData } = useCanvasMutations()
+  const { deleteNode, updateNodeData } = useCanvasMutations()
 
   const updateNodeLabel = useCallback((newLabel: string) => {
     updateNodeData(id, { label: newLabel })
@@ -122,23 +148,32 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
     updateNodeData(id, { color: colorFill, textColor: colorText })
   }, [id, updateNodeData])
 
-  const startEditing = useCallback((e: React.MouseEvent) => {
+  const handleDeleteNode = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    deleteNode(id)
+  }, [deleteNode, id])
+
+  const startEditing = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation()
     setIsEditing(true)
   }, [])
 
   const commitEdit = useCallback(() => {
-    const value = editRef.current?.textContent ?? ""
+    const value = editRef.current?.textContent?.trim() ?? ""
     setIsEditing(false)
     updateNodeLabel(value)
   }, [updateNodeLabel])
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    e.stopPropagation()
-    if (e.key === "Escape" || e.key === "Enter") {
-      commitEdit()
-    }
-  }, [commitEdit])
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      e.stopPropagation()
+      if (e.key === "Escape" || e.key === "Enter") {
+        e.preventDefault()
+        commitEdit()
+      }
+    },
+    [commitEdit]
+  )
 
   useEffect(() => {
     if (!isEditing || !editRef.current) return
@@ -155,17 +190,47 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing])
 
-  const labelContent = (
+  useEffect(() => {
+    if (!isEditing) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (nodeRef.current?.contains(target)) return
+
+      commitEdit()
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true)
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true)
+  }, [commitEdit, isEditing])
+
+  const labelClassName = isSvg ? "relative z-10 truncate px-3" : "truncate px-3"
+  const labelContent = hasLabel ? (
     <span
-      className={isSvg ? "relative z-10 truncate px-3" : "truncate px-3"}
+      className={labelClassName}
       style={{ color: textColor, visibility: isEditing ? "hidden" : "visible" }}
     >
-      {data.label || <span style={{ opacity: 0.35 }}>Label</span>}
+      {data.label}
     </span>
+  ) : (
+    <button
+      type="button"
+      className={`${labelClassName} nodrag nopan flex items-center gap-1 text-xs font-medium opacity-60 transition-opacity hover:opacity-100`}
+      style={{ color: textColor, visibility: isEditing ? "hidden" : "visible" }}
+      title="Add node label"
+      onClick={startEditing}
+      onMouseDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <Plus className="h-3 w-3" />
+      Add label
+    </button>
   )
 
   return (
     <div
+      ref={nodeRef}
       style={{ width: "100%", height: "100%" }}
       className="group/node relative flex items-center justify-center text-sm font-medium"
       onDoubleClick={startEditing}
@@ -181,6 +246,8 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
 
       <NodeToolbar isVisible={selected ?? false} position={Position.Top}>
         <div className="nodrag nopan relative z-50 flex items-center gap-1.5 rounded-full border border-border-default bg-bg-surface/95 px-2.5 py-1.5 shadow-xl backdrop-blur-xl">
+          <LabelControl hasLabel={hasLabel} onClick={startEditing} />
+          <div className="mx-0.5 h-5 w-px bg-border-default" />
           {NODE_COLORS.map((pair) => (
             <ColorSwatch
               key={pair.fill}
@@ -189,6 +256,17 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
               onSelect={updateNodeColor}
             />
           ))}
+          <div className="mx-0.5 h-5 w-px bg-border-default" />
+          <button
+            type="button"
+            className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-full border border-state-error/35 bg-bg-surface text-state-error transition-colors hover:bg-state-error/10"
+            title="Delete selected node"
+            onClick={handleDeleteNode}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         </div>
       </NodeToolbar>
 
