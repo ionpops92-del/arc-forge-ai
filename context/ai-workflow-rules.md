@@ -52,6 +52,7 @@ Update the relevant context file whenever implementation changes:
 - Feature scope
 
 Progress state must reflect the actual state of the implementation, not the intended state.
+Progress tracker active sections describe product capabilities and roadmap direction only; do not record PR numbers, branch names, merge state, push state, or GitHub workflow steps there.
 
 ## Before Moving To The Next Unit
 

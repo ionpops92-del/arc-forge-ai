@@ -5,7 +5,7 @@ This setup runs the full local development stack in Docker Compose:
 - PostgreSQL on host port `5433`
 - Next.js dev server on `http://localhost:3000`
 - Internal AI worker for queued design/spec tasks
-- Internal realtime WebSocket service on `http://localhost:3001`
+- Internal realtime WebSocket service on `http://localhost:3001` with browser WebSocket URL `ws://localhost:3001/ws`
 
 Pressing Play for `docker-compose.local.yml` in Docker Desktop starts all services.
 
@@ -52,7 +52,10 @@ The app container installs dependencies if needed, generates Prisma Client, appl
 
 The worker container waits for the app healthcheck, then starts the internal PostgreSQL-backed AI task runner.
 
-The realtime container waits for PostgreSQL and the app healthcheck, then starts the internal WebSocket service. In this foundation phase it provides authenticated room tokens, room joins, presence updates, pings, and generic event broadcast. Liveblocks remains the active canvas runtime until the next cutover step, and React Flow remains the canvas renderer.
+The realtime container waits for PostgreSQL and the app healthcheck, then starts the internal WebSocket service. It provides authenticated room tokens, room joins, presence updates, chat/status events, canvas synchronization, and bounded payload handling. React Flow remains the canvas renderer.
+
+Local HTTP and WS URLs are development-only. Any staging, preview, or production environment must use HTTPS for the app and WSS for the realtime WebSocket URL; insecure non-local configuration fails closed.
+The browser bundle uses `NEXT_PUBLIC_APP_ENV=local` to allow `ws://localhost:3001/ws` only for local browser sessions. Server-side services use `APP_ENV=local`; internal realtime publish URL fallback to localhost is local-only.
 
 Open:
 
@@ -131,18 +134,19 @@ With only the Docker PostgreSQL database and internal auth defaults, you can use
 - `/api/auth/me`
 - local project creation and project navigation
 - owner/collaborator database records
-- internal realtime token issuance and realtime health checks
+- internal realtime token issuance, realtime health checks, presence, chat/status events, and canvas synchronization
 
 ## Keys Needed For Full Behavior
 
-Full collaborative canvas and AI behavior requires additional keys in `.env.local`:
+Full AI and artifact persistence behavior requires additional keys in `.env.local`:
 
-- `LIVEBLOCKS_SECRET_KEY` for Liveblocks room auth and collaboration.
 - `INTERNAL_REALTIME_TOKEN_SECRET` for internal realtime room token signing. Docker local mode provides a development-only placeholder if no local value is set.
+- `INTERNAL_REALTIME_SERVICE_SECRET` for app/worker-to-realtime internal publish calls. Docker local mode provides a development-only placeholder if no local value is set.
+- `NEXT_PUBLIC_APP_ENV=local` and `NEXT_PUBLIC_REALTIME_URL=ws://localhost:3001/ws` for local browser realtime connections.
 - `BLOB_READ_WRITE_TOKEN` for Vercel Blob canvas/spec persistence.
 - `GOOGLE_AI_API_KEY` for Gemini-backed AI design/spec generation.
 
-Without these keys, local auth and database-backed project flows can still be tested, but Liveblocks, Vercel Blob, and Google AI calls will fail when reached. Missing AI service keys fail individual queued tasks safely without stopping the worker. The internal realtime service can be health-checked at:
+Without Blob or Google keys, local auth, database-backed project flows, and realtime room connectivity can still be tested, but canvas/spec persistence or Gemini calls fail when reached. Missing AI service keys fail individual queued tasks safely without stopping the worker. The internal realtime service can be health-checked at:
 
 ```text
 http://localhost:3001/health

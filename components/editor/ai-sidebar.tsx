@@ -13,21 +13,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  useEventListener,
-  useUpdateMyPresence,
-  useFeedMessages,
-  useCreateFeed,
-  useCreateFeedMessage,
-  useSelf,
-  useStorage,
-} from "@liveblocks/react"
 import { AiStatusFeedMessageSchema, ChatFeedMessageSchema } from "@/types/tasks"
 import { cn } from "@/lib/utils"
 import { isTerminalAiRunStatus, useAiRunStatus } from "@/hooks/use-ai-run-status"
-
-const FEED_ID = "ai-status-feed"
-const CHAT_FEED_ID = "ai-chat"
+import { useRealtimeRoom } from "@/hooks/use-realtime-room"
 
 interface SpecItem {
   id: string
@@ -87,6 +76,16 @@ function formatTime(createdAt: number): string {
 }
 
 export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps) {
+  const {
+    nodes,
+    edges,
+    currentUserName,
+    chatMessages,
+    aiStatuses,
+    sendChatMessage,
+    broadcastRoomEvent,
+    patchPresence,
+  } = useRealtimeRoom()
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [runId, setRunId] = useState<string | null>(null)
@@ -107,31 +106,6 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
   const [specModalOpen, setSpecModalOpen] = useState(false)
   const [isSpecGenerating, setIsSpecGenerating] = useState(false)
   const [specRunId, setSpecRunId] = useState<string | null>(null)
-
-  // Canvas storage for spec generation context
-  // useStorage immutably serializes LiveMap as a plain readonly object, so use Object.values
-  const nodesArray = useStorage((root) => {
-    const m = root.flow?.nodes
-    return m ? Object.values(m) : []
-  })
-  const edgesArray = useStorage((root) => {
-    const m = root.flow?.edges
-    return m ? Object.values(m) : []
-  })
-
-  const self = useSelf()
-  const updateMyPresence = useUpdateMyPresence()
-  const createFeed = useCreateFeed()
-  const createFeedMessage = useCreateFeedMessage()
-  const { messages: feedMessages } = useFeedMessages(FEED_ID)
-  const { messages: chatFeedMessages } = useFeedMessages(CHAT_FEED_ID)
-
-  // Ensure both feeds exist on mount
-  useEffect(() => {
-    createFeed(FEED_ID).catch(() => {})
-    createFeed(CHAT_FEED_ID).catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const fetchSpecs = useCallback(async () => {
     await Promise.resolve()
@@ -173,38 +147,35 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
         ? (typedOutput?.summary ?? "Design applied to canvas.")
         : "Ghost AI encountered an error. Please try again."
 
-      createFeedMessage(CHAT_FEED_ID, {
-        sender: "Ghost AI",
-        role: "assistant",
-        content,
-        timestamp: new Date().toISOString(),
-      }).catch(() => {})
-
-      createFeedMessage(FEED_ID, {
-        text: content,
-        status: isSuccess ? "complete" : "error",
-      }).catch(() => {})
+      sendChatMessage(content, { role: "assistant", sender: "Ghost AI" })
+      broadcastRoomEvent({
+        type: "ai.status",
+        payload: {
+          text: content,
+          status: isSuccess ? "complete" : "error",
+        },
+      })
 
       setIsLoading(false)
       setStatusText("")
       setRunId(null)
-      updateMyPresence({ thinking: false })
+      patchPresence({ thinking: false })
     },
-    [createFeedMessage, updateMyPresence]
+    [broadcastRoomEvent, patchPresence, sendChatMessage]
   )
 
   // Latest validated feed message for the status strip fallback
   const latestFeedMessage = (() => {
-    if (!feedMessages?.length) return null
-    const sorted = [...feedMessages].sort((a, b) => b.createdAt - a.createdAt)
-    const parsed = AiStatusFeedMessageSchema.safeParse(sorted[0].data)
+    if (!aiStatuses.length) return null
+    const sorted = [...aiStatuses].sort((a, b) => b.createdAt - a.createdAt)
+    const parsed = AiStatusFeedMessageSchema.safeParse(sorted[0])
     return parsed.success ? parsed.data : null
   })()
 
   // Validated chat messages from the ai-chat feed, in chronological order
-  const validatedChatMessages = (chatFeedMessages ?? [])
+  const validatedChatMessages = chatMessages
     .map((msg) => {
-      const parsed = ChatFeedMessageSchema.safeParse(msg.data)
+      const parsed = ChatFeedMessageSchema.safeParse(msg)
       if (!parsed.success) return null
       return { id: msg.id, createdAt: msg.createdAt, ...parsed.data }
     })
@@ -215,8 +186,6 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
     if (isSpecGenerating) return
     setIsSpecGenerating(true)
 
-    const nodes = nodesArray ?? []
-    const edges = edgesArray ?? []
     const chatHistory = validatedChatMessages.map((msg) => ({
       role: msg.role,
       content: msg.content,
@@ -235,13 +204,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
     } catch {
       setIsSpecGenerating(false)
     }
-  }, [isSpecGenerating, roomId, nodesArray, edgesArray, validatedChatMessages])
-
-  // Receive broadcast status events for real-time strip text
-  useEventListener(({ event }) => {
-    if (event.type !== "ai-status") return
-    setStatusText(event.message)
-  })
+  }, [isSpecGenerating, roomId, nodes, edges, validatedChatMessages])
 
   // Scroll both tabs to bottom when messages update
   useEffect(() => {
@@ -266,25 +229,22 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
 
     setInput("")
     setIsLoading(true)
-    updateMyPresence({ thinking: true })
+    patchPresence({ thinking: true })
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "72px"
     }
 
-    // Push user message to shared ai-chat feed
-    createFeedMessage(CHAT_FEED_ID, {
-      sender: self?.info?.name ?? "Unknown",
-      role: "user",
-      content: text,
-      timestamp: new Date().toISOString(),
-    }).catch(() => {})
+    sendChatMessage(text)
 
     // Write initial status to ai-status-feed
-    createFeedMessage(FEED_ID, {
-      text: "Ghost AI is analyzing your request…",
-      status: "start",
-    }).catch(() => {})
+    broadcastRoomEvent({
+      type: "ai.status",
+      payload: {
+        text: "Ghost AI is analyzing your request…",
+        status: "start",
+      },
+    })
 
     setStatusText("Ghost AI is analyzing your request…")
 
@@ -301,23 +261,23 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
 
       setRunId(newRunId)
     } catch {
-      createFeedMessage(CHAT_FEED_ID, {
-        sender: "Ghost AI",
+      sendChatMessage("Failed to reach Ghost AI. Please try again.", {
         role: "assistant",
-        content: "Failed to reach Ghost AI. Please try again.",
-        timestamp: new Date().toISOString(),
-      }).catch(() => {})
-
-      createFeedMessage(FEED_ID, {
-        text: "Ghost AI encountered an error.",
-        status: "error",
-      }).catch(() => {})
+        sender: "Ghost AI",
+      })
+      broadcastRoomEvent({
+        type: "ai.status",
+        payload: {
+          text: "Ghost AI encountered an error.",
+          status: "error",
+        },
+      })
 
       setIsLoading(false)
       setStatusText("")
-      updateMyPresence({ thinking: false })
+      patchPresence({ thinking: false })
     }
-  }, [input, isLoading, roomId, projectId, updateMyPresence, createFeedMessage, self])
+  }, [broadcastRoomEvent, input, isLoading, patchPresence, projectId, roomId, sendChatMessage])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -352,12 +312,8 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
     setChatError(null)
 
     try {
-      await createFeedMessage(CHAT_FEED_ID, {
-        sender: self?.info?.name ?? "Unknown",
-        role: "user",
-        content: text,
-        timestamp: new Date().toISOString(),
-      })
+      const sent = sendChatMessage(text)
+      if (!sent) throw new Error("Realtime chat is disconnected")
       setChatInput("")
       if (chatTextareaRef.current) {
         chatTextareaRef.current.style.height = "72px"
@@ -365,7 +321,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
     } catch {
       setChatError("Failed to send message. Please try again.")
     }
-  }, [chatInput, createFeedMessage, self])
+  }, [chatInput, sendChatMessage])
 
   const handleChatKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -416,7 +372,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
     setSpecContent(null)
   }, [])
 
-  const activeStatusText = statusText || (isLoading ? latestFeedMessage?.text ?? "" : "")
+  const activeStatusText = isLoading ? latestFeedMessage?.text ?? statusText : ""
 
   return (
     <>
@@ -671,7 +627,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
                   <div className="flex flex-col gap-3 pb-2">
                     {validatedChatMessages.map((msg) => {
                       const isMe =
-                        msg.role === "user" && msg.sender === self?.info?.name
+                        msg.role === "user" && msg.sender === currentUserName
                       const isAI = msg.role === "assistant"
                       return (
                         <div

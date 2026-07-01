@@ -27,11 +27,16 @@ services:
     ports:
       - "3000:3000"
     environment:
+      APP_ENV: local
+      NEXT_PUBLIC_APP_ENV: local
       DATABASE_URL: postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public
       AUTH_SESSION_COOKIE_NAME: arc_forge_session
       APP_URL: http://localhost:3000
+      NEXT_PUBLIC_REALTIME_URL: ws://localhost:3001/ws
       NEXT_TELEMETRY_DISABLED: "1"
       INTERNAL_REALTIME_TOKEN_SECRET: arc-forge-local-realtime-secret-change-me
+      INTERNAL_REALTIME_SERVICE_SECRET: arc-forge-local-realtime-service-secret-change-me
+      INTERNAL_REALTIME_INTERNAL_URL: http://realtime:3001/internal/broadcast
     volumes:
       - .:/app
       - arc-forge-ai-node-modules:/app/node_modules
@@ -40,9 +45,15 @@ services:
       sh -c "set -a &&
       [ ! -f .env.local ] || . ./.env.local &&
       set +a &&
+      export APP_ENV=local &&
+      export NEXT_PUBLIC_APP_ENV=local &&
       export DATABASE_URL='postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public' &&
+      export APP_URL='http://localhost:3000' &&
+      export NEXT_PUBLIC_REALTIME_URL='ws://localhost:3001/ws' &&
       export NEXT_TELEMETRY_DISABLED=1 &&
       export INTERNAL_REALTIME_TOKEN_SECRET=$${INTERNAL_REALTIME_TOKEN_SECRET:-arc-forge-local-realtime-secret-change-me} &&
+      export INTERNAL_REALTIME_SERVICE_SECRET=$${INTERNAL_REALTIME_SERVICE_SECRET:-arc-forge-local-realtime-service-secret-change-me} &&
+      export INTERNAL_REALTIME_INTERNAL_URL='http://realtime:3001/internal/broadcast' &&
       npm install &&
       npx prisma generate &&
       npx prisma migrate deploy &&
@@ -69,10 +80,13 @@ services:
         condition: service_healthy
     restart: unless-stopped
     environment:
+      APP_ENV: local
       DATABASE_URL: postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public
       AUTH_SESSION_COOKIE_NAME: arc_forge_session
       APP_URL: http://localhost:3000
       NEXT_TELEMETRY_DISABLED: "1"
+      INTERNAL_REALTIME_SERVICE_SECRET: arc-forge-local-realtime-service-secret-change-me
+      INTERNAL_REALTIME_INTERNAL_URL: http://realtime:3001/internal/broadcast
     volumes:
       - .:/app
       - arc-forge-ai-node-modules:/app/node_modules
@@ -80,8 +94,12 @@ services:
       sh -c "set -a &&
       [ ! -f .env.local ] || . ./.env.local &&
       set +a &&
+      export APP_ENV=local &&
       export DATABASE_URL='postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public' &&
+      export APP_URL='http://localhost:3000' &&
       export NEXT_TELEMETRY_DISABLED=1 &&
+      export INTERNAL_REALTIME_SERVICE_SECRET=$${INTERNAL_REALTIME_SERVICE_SECRET:-arc-forge-local-realtime-service-secret-change-me} &&
+      export INTERNAL_REALTIME_INTERNAL_URL='http://realtime:3001/internal/broadcast' &&
       npm run ai:worker"
 
   realtime:
@@ -97,11 +115,14 @@ services:
     ports:
       - "3001:3001"
     environment:
+      APP_ENV: local
       DATABASE_URL: postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public
       REALTIME_PORT: "3001"
       APP_URL: http://localhost:3000
+      NEXT_PUBLIC_REALTIME_URL: ws://localhost:3001/ws
       NEXT_TELEMETRY_DISABLED: "1"
       INTERNAL_REALTIME_TOKEN_SECRET: arc-forge-local-realtime-secret-change-me
+      INTERNAL_REALTIME_SERVICE_SECRET: arc-forge-local-realtime-service-secret-change-me
     volumes:
       - .:/app
       - arc-forge-ai-node-modules:/app/node_modules
@@ -109,10 +130,14 @@ services:
       sh -c "set -a &&
       [ ! -f .env.local ] || . ./.env.local &&
       set +a &&
+      export APP_ENV=local &&
       export DATABASE_URL='postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public' &&
+      export APP_URL='http://localhost:3000' &&
       export REALTIME_PORT=3001 &&
+      export NEXT_PUBLIC_REALTIME_URL='ws://localhost:3001/ws' &&
       export NEXT_TELEMETRY_DISABLED=1 &&
       export INTERNAL_REALTIME_TOKEN_SECRET=$${INTERNAL_REALTIME_TOKEN_SECRET:-arc-forge-local-realtime-secret-change-me} &&
+      export INTERNAL_REALTIME_SERVICE_SECRET=$${INTERNAL_REALTIME_SERVICE_SECRET:-arc-forge-local-realtime-service-secret-change-me} &&
       npm run realtime:server"
     healthcheck:
       test:

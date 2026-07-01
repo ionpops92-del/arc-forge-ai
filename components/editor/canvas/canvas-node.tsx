@@ -3,10 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Handle, Position, NodeResizer, NodeToolbar } from "@xyflow/react"
 import type { NodeProps } from "@xyflow/react"
-import { useMutation } from "@liveblocks/react"
-import { LiveObject } from "@liveblocks/client"
 import type { CanvasNode, NodeShape } from "@/types/canvas"
 import { NODE_COLORS } from "@/types/canvas"
+import { useCanvasMutations } from "@/components/editor/canvas/canvas-mutation-context"
 
 const DEFAULT_FILL = NODE_COLORS[0].fill
 const DEFAULT_TEXT = NODE_COLORS[0].text
@@ -104,10 +103,6 @@ function ColorSwatch({ pair, isActive, onSelect }: ColorSwatchProps) {
   )
 }
 
-type LiveNodeData = LiveObject<{
-  data: LiveObject<{ label: string; color?: string; textColor?: string; shape?: NodeShape }>
-}>
-
 export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode>) {
   const fill = data.color ?? DEFAULT_FILL
   const textColor = data.textColor ?? DEFAULT_TEXT
@@ -117,20 +112,15 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
 
   const [isEditing, setIsEditing] = useState(false)
   const editRef = useRef<HTMLDivElement>(null)
+  const { updateNodeData } = useCanvasMutations()
 
-  const updateNodeLabel = useMutation(({ storage }, newLabel: string) => {
-    const node = storage.get("flow").get("nodes").get(id)
-    if (!node) return
-    ;(node as unknown as LiveNodeData).get("data").set("label", newLabel)
-  }, [id])
+  const updateNodeLabel = useCallback((newLabel: string) => {
+    updateNodeData(id, { label: newLabel })
+  }, [id, updateNodeData])
 
-  const updateNodeColor = useMutation(({ storage }, colorFill: string, colorText: string) => {
-    const node = storage.get("flow").get("nodes").get(id)
-    if (!node) return
-    const liveData = (node as unknown as LiveNodeData).get("data")
-    liveData.set("color", colorFill)
-    liveData.set("textColor", colorText)
-  }, [id])
+  const updateNodeColor = useCallback((colorFill: string, colorText: string) => {
+    updateNodeData(id, { color: colorFill, textColor: colorText })
+  }, [id, updateNodeData])
 
   const startEditing = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()

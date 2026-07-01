@@ -17,6 +17,13 @@ interface RoomConnection {
   presence: RealtimePresence | null
 }
 
+interface InternalBroadcastInput {
+  roomId: string
+  projectId: string
+  userId: string
+  event: RealtimeRoomEvent
+}
+
 export class RealtimeRoomRegistry {
   private rooms = new Map<string, Map<string, RoomConnection>>()
 
@@ -82,6 +89,21 @@ export class RealtimeRoomRegistry {
       connectionId: connection.id,
       event,
     })
+  }
+
+  broadcastInternal(input: InternalBroadcastInput) {
+    const room = this.rooms.get(input.roomId)
+    if (!room) return
+
+    for (const peer of room.values()) {
+      this.send(peer, {
+        type: "event.broadcast",
+        roomId: input.roomId,
+        userId: input.userId,
+        connectionId: input.userId,
+        event: input.event,
+      })
+    }
   }
 
   sendError(connection: RoomConnection, message: string, code?: string) {

@@ -1,18 +1,14 @@
 "use client"
 
-import Image from "next/image"
-import { useOthers } from "@liveblocks/react"
 import { UserMenu } from "@/components/auth/user-menu"
-import { useCurrentUser } from "@/hooks/use-current-user"
+import { useRealtimeRoom } from "@/hooks/use-realtime-room"
 
 const MAX_VISIBLE = 5
 const FALLBACK_COLLABORATOR_COLOR = "var(--color-text-muted)"
 
 export function CollaboratorAvatars() {
-  const { user } = useCurrentUser()
-  const others = useOthers()
-
-  const collaborators = others.filter((o) => o.id !== user?.id)
+  const { presence, connectionId } = useRealtimeRoom()
+  const collaborators = presence.filter((o) => o.connectionId !== connectionId)
   const visible = collaborators.slice(0, MAX_VISIBLE)
   const overflow = collaborators.length - MAX_VISIBLE
 
@@ -24,9 +20,16 @@ export function CollaboratorAvatars() {
             {visible.map((other) => (
               <AvatarChip
                 key={other.connectionId}
-                name={other.info?.name ?? "Anonymous"}
-                avatar={other.info?.avatar}
-                color={other.info?.color ?? FALLBACK_COLLABORATOR_COLOR}
+                name={
+                  typeof other.presence?.name === "string"
+                    ? other.presence.name
+                    : "Anonymous"
+                }
+                color={
+                  typeof other.presence?.color === "string"
+                    ? other.presence.color
+                    : FALLBACK_COLLABORATOR_COLOR
+                }
               />
             ))}
             {overflow > 0 && (
@@ -45,11 +48,9 @@ export function CollaboratorAvatars() {
 
 function AvatarChip({
   name,
-  avatar,
   color,
 }: {
   name: string
-  avatar?: string
   color: string
 }) {
   const initials = name
@@ -62,19 +63,10 @@ function AvatarChip({
   return (
     <div
       className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-bg-base text-xs font-semibold text-white ring-1 ring-white/20"
-      style={{ background: avatar ? undefined : color }}
+      style={{ background: color }}
       title={name}
     >
-      {avatar ? (
-        <Image
-          src={avatar}
-          alt={name}
-          fill
-          className="rounded-full object-cover"
-        />
-      ) : (
-        initials
-      )}
+      {initials}
     </div>
   )
 }

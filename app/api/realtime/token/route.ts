@@ -1,4 +1,8 @@
 import { z } from "zod"
+import {
+  RuntimeConfigError,
+  assertSecureBrowserRequest,
+} from "@/lib/config/runtime-env"
 import { getCurrentProjectIdentity } from "@/lib/project-access"
 import {
   createAuthorizedRealtimeToken,
@@ -11,6 +15,16 @@ const RealtimeTokenRequestSchema = z.object({
 })
 
 export async function POST(request: Request) {
+  try {
+    assertSecureBrowserRequest(request)
+  } catch (error) {
+    if (error instanceof RuntimeConfigError) {
+      return Response.json({ error: error.message }, { status: 403 })
+    }
+
+    throw error
+  }
+
   const identity = await getCurrentProjectIdentity(request)
 
   if (!identity.userId) {

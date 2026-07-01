@@ -1,27 +1,43 @@
 "use client"
 
-import { useOthers } from "@liveblocks/react"
 import { useViewport } from "@xyflow/react"
 import { Loader2 } from "lucide-react"
+import { useRealtimeRoom } from "@/hooks/use-realtime-room"
 
 const FALLBACK_CURSOR_COLOR = "var(--color-text-muted)"
 
 export function PresenceCursors() {
-  const others = useOthers()
+  const { presence, connectionId } = useRealtimeRoom()
   const { x: viewportX, y: viewportY, zoom } = useViewport()
 
   return (
     <div
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
-      {others.map((other) => {
-        const cursor = other.presence.cursor
-        if (!cursor) return null
+      {presence.map((other) => {
+        if (other.connectionId === connectionId) return null
+        const cursor = other.presence?.cursor
+        if (
+          !cursor ||
+          typeof cursor !== "object" ||
+          Array.isArray(cursor) ||
+          typeof cursor.x !== "number" ||
+          typeof cursor.y !== "number"
+        ) {
+          return null
+        }
 
         const x = cursor.x * zoom + viewportX
         const y = cursor.y * zoom + viewportY
-        const color = other.info?.color ?? FALLBACK_CURSOR_COLOR
-        const name = other.info?.name ?? "Anonymous"
+        const color =
+          typeof other.presence?.color === "string"
+            ? other.presence.color
+            : FALLBACK_CURSOR_COLOR
+        const name =
+          typeof other.presence?.name === "string"
+            ? other.presence.name
+            : "Anonymous"
+        const thinking = other.presence?.thinking === true
 
         return (
           <div
@@ -48,7 +64,7 @@ export function PresenceCursors() {
               className="mt-0.5 flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-white"
               style={{ background: color, whiteSpace: "nowrap" }}
             >
-              {other.presence.thinking && (
+              {thinking && (
                 <Loader2 className="h-2.5 w-2.5 animate-spin" />
               )}
               {name}

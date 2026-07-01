@@ -27,6 +27,19 @@ export interface RealtimeRoomEvent {
   payload: JsonValue
 }
 
+export const REALTIME_ROOM_EVENT_TYPES = [
+  "canvas.snapshot",
+  "canvas.nodes.upsert",
+  "canvas.nodes.delete",
+  "canvas.edges.upsert",
+  "canvas.edges.delete",
+  "canvas.cleared",
+  "cursor.update",
+  "chat.message",
+  "ai.status",
+  "event.broadcast",
+] as const
+
 export interface RealtimeClientPresenceUpdate {
   type: "presence.update"
   presence: RealtimePresence | null
