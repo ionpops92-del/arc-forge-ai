@@ -22,6 +22,7 @@
     "realtime:server": "tsx scripts/realtime-server.ts",
     "test:transport-security": "tsx scripts/transport-security-smoke.ts",
     "test:storage": "tsx scripts/storage-smoke.ts",
+    "test:ai-providers": "tsx scripts/ai-provider-smoke.ts",
     "db:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

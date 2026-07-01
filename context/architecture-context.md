@@ -11,12 +11,15 @@
 | Canvas           | React Flow              | Permanent canvas renderer and interaction layer                |
 | Realtime         | Internal WebSocket service | Collaboration runtime for room tokens, presence, canvas sync, chat/status events |
 | Background tasks | Internal AI task runner | PostgreSQL-backed durable AI generation workflows              |
+| AI providers     | Provider abstraction    | Mock, Google Gemini, and OpenAI-compatible design/spec generation |
 | Artifact storage | Storage provider        | Canvas snapshots and generated Markdown specs                  |
 
 ## System Boundaries
 
 - `app/api` — Authenticated request handlers: input validation, ownership checks, task triggering, and persistence.
 - `lib/ai-tasks` — Long-running background jobs: task leasing, retries, AI design generation, and spec generation.
+- `lib/ai/providers` — Server-side AI provider selection and external model adapters.
+- `lib/ai/design` / `lib/ai/spec` — Provider contracts, structured design actions, and spec context helpers.
 - `scripts/ai-worker.ts` — Worker process entrypoint for local and production task execution.
 - `lib/realtime` — Internal realtime foundation: signed room tokens, typed protocol, room registry, and WebSocket server.
 - `scripts/realtime-server.ts` — Standalone realtime service entrypoint for long-lived WebSocket connections.
@@ -60,12 +63,15 @@
 
 - Input: user prompt, project context, and current canvas state.
 - Execution: durable background task via the internal PostgreSQL-backed AI task runner.
+- Provider: selected with `AI_PROVIDER=mock | google | openai_compatible`; local defaults to `mock` and requires no external key.
 - Output: structured node and edge updates written to provider-backed canvas state and published into the internal realtime room.
+- Design provider output is validated against the allowed action schema before it can mutate canvas state.
 
 ### Spec Generation
 
 - Input: current canvas graph and project context.
 - Execution: durable background task via the internal PostgreSQL-backed AI task runner.
+- Provider: selected through the same server-side AI provider factory.
 - Output: Markdown technical spec saved through the storage provider and linked to the project in the database.
 
 ## Invariants
@@ -79,3 +85,4 @@
 7. Internal realtime WebSocket connections must use short-lived room tokens and must not expose raw auth/session tokens.
 8. React Flow remains the permanent canvas renderer.
 9. Non-local browser-facing HTTP and WebSocket transport must use HTTPS/WSS and fail closed when secure transport cannot be verified.
+10. AI provider API keys are server-only and are required only when their provider is explicitly selected.
