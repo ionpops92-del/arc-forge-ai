@@ -302,7 +302,7 @@ export function CanvasEditor({
     (event: React.DragEvent) => {
       event.preventDefault()
 
-      const raw = event.dataTransfer.getData("application/ghost-shape")
+      const raw = event.dataTransfer.getData("application/arc-forge-shape")
       if (!raw) return
 
       let payload: { shape: NodeShape; size: { width: number; height: number } }

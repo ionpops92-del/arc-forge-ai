@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { BrainCircuit, Share2, ScrollText } from "lucide-react"
+import { APP_MARK, APP_NAME } from "@/lib/branding"
 
 const features = [
   {
@@ -33,11 +34,11 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
                 className="text-xs font-bold leading-none text-bg-base"
                 style={{ fontFamily: "var(--font-geist-sans)" }}
               >
-                G
+                {APP_MARK}
               </span>
             </div>
             <span className="text-sm font-semibold text-text-primary">
-              Ghost AI
+              {APP_NAME}
             </span>
           </div>
         </div>
@@ -49,7 +50,7 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
             speed of thought.
           </h1>
           <p className="mb-12 max-w-sm text-base leading-relaxed text-text-secondary">
-            Describe your architecture in plain English. Ghost AI maps it to a
+            Describe your architecture in plain English. Arc Forge AI maps it to a
             shared canvas your whole team can refine in real time.
           </p>
 
@@ -74,7 +75,7 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
 
         <div className="px-12 pb-10">
           <p className="text-xs text-text-faint">
-            © 2026 Ghost AI. All rights reserved.
+            © 2026 {APP_NAME}. All rights reserved.
           </p>
         </div>
       </div>

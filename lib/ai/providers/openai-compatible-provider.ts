@@ -14,6 +14,7 @@ import {
 } from "@/lib/ai/spec/spec-provider-contract"
 import { AiProviderConfigError, type AiProvider } from "@/lib/ai/providers/types"
 import { NODE_SHAPES } from "@/types/canvas"
+import { AI_ASSISTANT_NAME } from "@/lib/branding"
 
 const ChatCompletionResponseSchema = z.object({
   choices: z
@@ -57,7 +58,7 @@ function extractJsonObject(text: string) {
 }
 
 function buildDesignSystemPrompt() {
-  return `You are Ghost AI, an expert system architect. Return only JSON matching this TypeScript shape:
+  return `You are ${AI_ASSISTANT_NAME}, an expert system architect. Return only JSON matching this TypeScript shape:
 {
   "summary": "1-2 sentence summary",
   "actions": [

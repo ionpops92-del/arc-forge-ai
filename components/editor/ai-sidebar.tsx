@@ -17,6 +17,11 @@ import { AiStatusFeedMessageSchema, ChatFeedMessageSchema } from "@/types/tasks"
 import { cn } from "@/lib/utils"
 import { isTerminalAiRunStatus, useAiRunStatus } from "@/hooks/use-ai-run-status"
 import { useRealtimeRoom } from "@/hooks/use-realtime-room"
+import {
+  AI_ASSISTANT_NAME,
+  AI_WORKSPACE_TAGLINE,
+  AI_WORKSPACE_TITLE,
+} from "@/lib/branding"
 
 interface SpecItem {
   id: string
@@ -145,9 +150,9 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
       const typedOutput = output as { summary?: string } | undefined
       const content = isSuccess
         ? (typedOutput?.summary ?? "Design applied to canvas.")
-        : "Ghost AI encountered an error. Please try again."
+        : `${AI_ASSISTANT_NAME} encountered an error. Please try again.`
 
-      sendChatMessage(content, { role: "assistant", sender: "Ghost AI" })
+      sendChatMessage(content, { role: "assistant", sender: AI_ASSISTANT_NAME })
       broadcastRoomEvent({
         type: "ai.status",
         payload: {
@@ -241,12 +246,12 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
     broadcastRoomEvent({
       type: "ai.status",
       payload: {
-        text: "Ghost AI is analyzing your request…",
+        text: `${AI_ASSISTANT_NAME} is analyzing your request…`,
         status: "start",
       },
     })
 
-    setStatusText("Ghost AI is analyzing your request…")
+    setStatusText(`${AI_ASSISTANT_NAME} is analyzing your request…`)
 
     try {
       const designRes = await fetch("/api/ai/design", {
@@ -261,14 +266,14 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
 
       setRunId(newRunId)
     } catch {
-      sendChatMessage("Failed to reach Ghost AI. Please try again.", {
+      sendChatMessage(`Failed to reach ${AI_ASSISTANT_NAME}. Please try again.`, {
         role: "assistant",
-        sender: "Ghost AI",
+        sender: AI_ASSISTANT_NAME,
       })
       broadcastRoomEvent({
         type: "ai.status",
         payload: {
-          text: "Ghost AI encountered an error.",
+          text: `${AI_ASSISTANT_NAME} encountered an error.`,
           status: "error",
         },
       })
@@ -461,8 +466,8 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
           <Bot className="h-4 w-4 text-accent-ai-text" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-text-primary">AI Workspace</p>
-          <p className="text-xs text-text-muted">Collaborate with Ghost AI</p>
+          <p className="text-sm font-medium text-text-primary">{AI_WORKSPACE_TITLE}</p>
+          <p className="text-xs text-text-muted">{AI_WORKSPACE_TAGLINE}</p>
         </div>
         {isLoading && (
           <div className="flex items-center gap-1 rounded-full bg-accent-ai/15 px-2 py-0.5 text-[10px] text-accent-ai-text">
@@ -513,7 +518,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
                     </div>
                     <div>
                       <p className="text-sm font-medium text-text-primary">
-                        Ghost AI Architect
+                        {AI_ASSISTANT_NAME}
                       </p>
                       <p className="mt-1 text-xs leading-5 text-text-muted">
                         Describe your system and I&apos;ll design the architecture on the canvas.
@@ -644,7 +649,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
                             )}
                           >
                             <span className="font-medium text-text-muted">
-                              {isAI ? "Ghost AI" : msg.sender}
+                              {isAI ? AI_ASSISTANT_NAME : msg.sender}
                             </span>
                             <span>{formatTime(msg.createdAt)}</span>
                           </div>

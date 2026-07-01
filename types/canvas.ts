@@ -40,6 +40,7 @@ export interface CanvasNodeData extends Record<string, unknown> {
 
 export interface CanvasEdgeData extends Record<string, unknown> {
   label?: string
+  labels?: string[]
 }
 
 export type CanvasNode = Node<CanvasNodeData, "canvasNode">

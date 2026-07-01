@@ -17,6 +17,7 @@ import {
 } from "@/lib/ai/spec/spec-provider-contract"
 import type { AiProvider } from "@/lib/ai/providers/types"
 import { NODE_COLORS, NODE_SHAPES } from "@/types/canvas"
+import { AI_ASSISTANT_NAME } from "@/lib/branding"
 
 const COLOR_NAMES = [
   "neutral",
@@ -62,7 +63,7 @@ function buildSystemPrompt(): string {
       `  ${index} (${COLOR_NAMES[index]}): fill=${color.fill} text=${color.text}`
   ).join("\n")
 
-  return `You are Ghost AI, an expert system architect that generates technical architecture diagrams on a collaborative canvas.
+  return `You are ${AI_ASSISTANT_NAME}, an expert system architect that generates technical architecture diagrams on a collaborative canvas.
 
 ALLOWED SHAPES (use exact value):
 - rectangle  -> services, APIs, microservices, components

@@ -3,6 +3,7 @@ import { applyDesignActions } from "@/lib/ai/design/design-actions"
 import { getAiProvider } from "@/lib/ai/providers/provider-factory"
 import { readCanvasSnapshot, writeCanvasSnapshot } from "@/lib/canvas/canvas-persistence"
 import { publishRealtimeRoomEvent } from "@/lib/realtime/server-publish"
+import { AI_ASSISTANT_NAME } from "@/lib/branding"
 import type { JsonValue } from "@/lib/realtime/types"
 import type { CanvasEdge, CanvasNode } from "@/types/canvas"
 
@@ -47,7 +48,12 @@ async function publishCanvas(projectId: string, roomId: string, nodes: CanvasNod
 export async function runDesignAgentTask(payload: DesignAgentPayload) {
   const projectId = payload.roomId
 
-  await publishStatus(projectId, payload.roomId, "Ghost AI is analyzing your request...", "start")
+  await publishStatus(
+    projectId,
+    payload.roomId,
+    `${AI_ASSISTANT_NAME} is analyzing your request...`,
+    "start"
+  )
 
   try {
     const currentCanvas = (await readCanvasSnapshot(projectId)) ?? { nodes: [], edges: [] }
@@ -77,7 +83,7 @@ export async function runDesignAgentTask(payload: DesignAgentPayload) {
     await publishStatus(
       projectId,
       payload.roomId,
-      "Ghost AI encountered an error. Please try again.",
+      `${AI_ASSISTANT_NAME} encountered an error. Please try again.`,
       "error"
     )
     throw error

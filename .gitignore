@@ -11,8 +11,8 @@
 !.yarn/versions
 /context/current-issues.md
 
-# Trigger.dev generated output
-.trigger/tmp/
+# Stale/generated hosted-runtime local output
+.trigger/
 
 # Local artifact storage output
 .local-storage/

@@ -44,6 +44,14 @@ function uniqueId(baseId: string, existingIds: Set<string>) {
   return id
 }
 
+function formatEdgeLabels(edge: GenerateSpecMarkdownInput["edges"][number]) {
+  const labels =
+    edge.data?.labels?.map((label) => label.trim()).filter(Boolean) ?? []
+  if (labels.length > 0) return ` (${labels.join("; ")})`
+
+  return edge.data?.label ? ` (${edge.data.label})` : ""
+}
+
 export class MockAiProvider implements AiProvider {
   readonly name = "mock" as const
 
@@ -139,7 +147,7 @@ export class MockAiProvider implements AiProvider {
       input.edges.length
         ? input.edges
             .slice(0, 12)
-            .map((edge) => `- ${edge.source} -> ${edge.target}${edge.data?.label ? ` (${edge.data.label})` : ""}`)
+            .map((edge) => `- ${edge.source} -> ${edge.target}${formatEdgeLabels(edge)}`)
             .join("\n")
         : "- No connections were provided.",
       "",

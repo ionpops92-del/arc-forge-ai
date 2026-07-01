@@ -37,12 +37,12 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
     <div className="flex items-center gap-2">
       <button
         type="button"
-        onClick={compact ? handleLogout : undefined}
+        onClick={undefined}
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-bg-elevated text-xs font-semibold text-text-primary",
-          compact && "hover:bg-bg-subtle"
+          compact && "cursor-default"
         )}
-        title={compact ? `Sign out ${label}` : label}
+        title={label}
       >
         {initials}
       </button>

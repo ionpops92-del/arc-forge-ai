@@ -1,6 +1,5 @@
 "use client"
 
-import { UserMenu } from "@/components/auth/user-menu"
 import { useRealtimeRoom } from "@/hooks/use-realtime-room"
 
 const MAX_VISIBLE = 5
@@ -12,36 +11,30 @@ export function CollaboratorAvatars() {
   const visible = collaborators.slice(0, MAX_VISIBLE)
   const overflow = collaborators.length - MAX_VISIBLE
 
+  if (visible.length === 0) return null
+
   return (
-    <div className="absolute right-3 top-3 z-40 flex items-center gap-2">
-      {visible.length > 0 && (
-        <>
-          <div className="flex items-center -space-x-2">
-            {visible.map((other) => (
-              <AvatarChip
-                key={other.connectionId}
-                name={
-                  typeof other.presence?.name === "string"
-                    ? other.presence.name
-                    : "Anonymous"
-                }
-                color={
-                  typeof other.presence?.color === "string"
-                    ? other.presence.color
-                    : FALLBACK_COLLABORATOR_COLOR
-                }
-              />
-            ))}
-            {overflow > 0 && (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-bg-base bg-bg-elevated text-xs font-medium text-text-primary ring-1 ring-white/20">
-                +{overflow}
-              </div>
-            )}
-          </div>
-          <div className="h-5 w-px bg-border-subtle" />
-        </>
+    <div className="absolute right-3 top-3 z-40 flex items-center -space-x-2">
+      {visible.map((other) => (
+        <AvatarChip
+          key={other.connectionId}
+          name={
+            typeof other.presence?.name === "string"
+              ? other.presence.name
+              : "Anonymous"
+          }
+          color={
+            typeof other.presence?.color === "string"
+              ? other.presence.color
+              : FALLBACK_COLLABORATOR_COLOR
+          }
+        />
+      ))}
+      {overflow > 0 && (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-bg-base bg-bg-elevated text-xs font-medium text-text-primary ring-1 ring-white/20">
+          +{overflow}
+        </div>
       )}
-      <UserMenu compact />
     </div>
   )
 }

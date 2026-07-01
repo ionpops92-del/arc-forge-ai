@@ -48,7 +48,7 @@ If you prefer visual learning, this is the perfect resource for you. Follow our 
 
 ## <a name="introduction">✨ Introduction</a>
 
-Ghost Arc is an agentic planning application built for software teams. A user submits a natural-language prompt (e.g., "Design a scalable e-commerce backend") and a provider-backed AI agent autonomously places nodes and edges onto a shared React Flow canvas in real-time. Human teammates can watch the AI build the diagram live, then jump in to collaboratively refine it. Once the team is satisfied, a second AI background task converts the visual graph into a comprehensive, multi-page Markdown technical specification that can be downloaded directly from the app. Local development uses a deterministic mock AI provider by default, while Google Gemini and OpenAI-compatible APIs can be selected through server-side environment variables.
+Arc Forge AI is an agentic planning application built for software teams. A user submits a natural-language prompt (e.g., "Design a scalable e-commerce backend") and a provider-backed AI architect autonomously places nodes and edges onto a shared React Flow canvas in real time. Human teammates can watch the AI build the diagram live, then jump in to collaboratively refine it. Once the team is satisfied, a second AI background task converts the visual graph into a comprehensive, multi-page Markdown technical specification that can be downloaded directly from the app. Local development uses a deterministic mock AI provider by default, while Google Gemini and OpenAI-compatible APIs can be selected through server-side environment variables.
 
 If you're getting started and need assistance or face any bugs, join our active Discord community with over **50k+** members. It's a place where people help each other out.
 
@@ -92,7 +92,7 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 👉 **Internal Realtime Engine**: A dedicated WebSocket service provides authenticated room join, presence update, ping/pong, bounded message validation, canvas sync, chat/status events, and strict HTTPS/WSS fail-closed checks outside local development.
 
-👉 **Custom Canvas Nodes**: Double-click to edit node labels inline; select to resize with NodeResizer; choose from 12 colour swatches via a floating NodeToolbar — all synced across clients instantly.
+👉 **Custom Canvas Nodes**: Double-click to edit node labels inline; select to resize with NodeResizer; choose from 8 color swatches via a floating NodeToolbar — all synced across clients instantly.
 
 👉 **AI Spec Generation**: One click converts the current graph into a detailed Markdown technical specification using the configured AI provider.
 
@@ -127,8 +127,8 @@ Make sure you have the following installed on your machine:
 **Cloning the Repository**
 
 ```bash
-git clone https://github.com/adrianhajdin/ghost-ai.git
-cd ghost-ai
+git clone https://github.com/ionpops92-del/Arc-Forge-AI.git
+cd Arc-Forge-AI
 ```
 
 **Installation**
