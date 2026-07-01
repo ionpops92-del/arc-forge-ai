@@ -5,8 +5,16 @@ import {
   type ServerResponse,
 } from "node:http"
 import { URL } from "node:url"
+import { z } from "zod"
 import { Prisma } from "@/app/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
+import {
+  RuntimeConfigError,
+  getAllowedAppOrigins,
+  getAppEnv,
+  isLocalAppEnv,
+} from "@/lib/config/runtime-env"
+import { getInternalRealtimeServiceSecret } from "@/lib/realtime/realtime-url"
 import {
   MAX_REALTIME_PAYLOAD_BYTES,
   parseRealtimeClientMessage,
@@ -22,6 +30,17 @@ import { verifyRealtimeTokenProjectAccess } from "@/lib/realtime/access"
 import { WebSocketServer, type RawData, type WebSocket } from "ws"
 
 const DEFAULT_REALTIME_PORT = 3001
+const INTERNAL_PUBLISH_USER_ID = "ghost-ai"
+
+const InternalBroadcastSchema = z.object({
+  projectId: z.string().trim().min(1).max(100),
+  roomId: z.string().trim().min(1).max(100),
+  userId: z.string().trim().min(1).max(120).optional().nullable(),
+  event: z.object({
+    type: z.string().trim().min(1).max(120),
+    payload: z.unknown(),
+  }),
+})
 
 export interface RealtimeServerOptions {
   port?: number
@@ -44,6 +63,22 @@ function writeHttpJson(
 ) {
   response.writeHead(status, { "content-type": "application/json" })
   response.end(JSON.stringify(body))
+}
+
+function readRequestBody(request: IncomingMessage) {
+  return new Promise<string>((resolve, reject) => {
+    let body = ""
+    request.setEncoding("utf8")
+    request.on("data", (chunk: string) => {
+      body += chunk
+      if (Buffer.byteLength(body, "utf8") > MAX_REALTIME_PAYLOAD_BYTES) {
+        reject(new Error("Request body is too large"))
+        request.destroy()
+      }
+    })
+    request.on("end", () => resolve(body))
+    request.on("error", reject)
+  })
 }
 
 function rejectUpgrade(
@@ -71,6 +106,8 @@ async function authorizeUpgrade(request: IncomingMessage) {
     throw new RealtimeTokenError("Unknown realtime endpoint")
   }
 
+  validateBrowserUpgrade(request)
+
   const token = url.searchParams.get("token")
 
   if (!token) {
@@ -85,6 +122,36 @@ async function authorizeUpgrade(request: IncomingMessage) {
   }
 
   return payload
+}
+
+function getForwardedProtocol(request: IncomingMessage) {
+  const header = request.headers["x-forwarded-proto"]
+  const value = Array.isArray(header) ? header[0] : header
+  return value?.split(",")[0]?.trim().toLowerCase() ?? null
+}
+
+function validateBrowserUpgrade(request: IncomingMessage) {
+  if (isLocalAppEnv()) return
+
+  const forwardedProto = getForwardedProtocol(request)
+  if (forwardedProto !== "https") {
+    throw new RealtimeTokenError("Secure WebSocket transport is required")
+  }
+
+  const origin = request.headers.origin
+  if (!origin) {
+    throw new RealtimeTokenError("Origin is required")
+  }
+
+  const originUrl = new URL(origin)
+  if (originUrl.protocol !== "https:") {
+    throw new RealtimeTokenError("Secure Origin is required")
+  }
+
+  const allowedOrigins = getAllowedAppOrigins()
+  if (!allowedOrigins.has(originUrl.origin)) {
+    throw new RealtimeTokenError("Origin is not allowed")
+  }
 }
 
 async function persistRealtimeEvent(
@@ -118,6 +185,14 @@ export function createRealtimeServer(options: RealtimeServerOptions = {}) {
         status: "ok",
         service: "internal-realtime",
         uptimeSeconds: Math.floor(process.uptime()),
+      })
+      return
+    }
+
+    if (request.method === "POST" && url.pathname === "/internal/broadcast") {
+      handleInternalBroadcast(request, response, registry).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "Invalid request"
+        writeHttpJson(response, 400, { error: message })
       })
       return
     }
@@ -236,4 +311,57 @@ export function createRealtimeServer(options: RealtimeServerOptions = {}) {
       })
     },
   }
+}
+
+async function handleInternalBroadcast(
+  request: IncomingMessage,
+  response: ServerResponse,
+  registry: RealtimeRoomRegistry
+) {
+  const providedSecret = request.headers["x-internal-realtime-secret"]
+  const secret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret
+
+  if (!secret || secret !== getInternalRealtimeServiceSecret()) {
+    writeHttpJson(response, 401, { error: "Unauthorized" })
+    return
+  }
+
+  const rawBody = await readRequestBody(request)
+  const parsedBody = InternalBroadcastSchema.safeParse(JSON.parse(rawBody || "{}"))
+  if (!parsedBody.success) {
+    writeHttpJson(response, 400, { error: "Invalid broadcast payload" })
+    return
+  }
+
+  const payload = parsedBody.data
+  const eventPayload = JSON.parse(JSON.stringify(payload.event.payload)) as JsonValue
+
+  await persistRealtimeEvent(
+    {
+      sub: payload.userId ?? INTERNAL_PUBLISH_USER_ID,
+      userId: payload.userId ?? INTERNAL_PUBLISH_USER_ID,
+      projectId: payload.projectId,
+      roomId: payload.roomId,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 60,
+    },
+    payload.event.type,
+    eventPayload
+  )
+
+  registry.broadcastInternal({
+    projectId: payload.projectId,
+    roomId: payload.roomId,
+    userId: payload.userId ?? INTERNAL_PUBLISH_USER_ID,
+    event: {
+      type: payload.event.type,
+      payload: eventPayload,
+    },
+  })
+
+  writeHttpJson(response, 200, { ok: true })
+}
+
+if (!isLocalAppEnv() && !process.env.APP_URL?.trim()) {
+  throw new RuntimeConfigError(`APP_URL must be set for APP_ENV=${getAppEnv()}`)
 }

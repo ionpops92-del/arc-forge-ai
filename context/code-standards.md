@@ -33,6 +33,7 @@
 - Enforce auth and project ownership checks before any mutation.
 - Return consistent, predictable response shapes.
 - Keep route handlers thin — push complexity into shared modules or background tasks.
+- Browser-facing token or realtime endpoints must fail closed outside `APP_ENV=local` unless HTTPS/WSS transport can be verified.
 
 ## Data and Storage
 
@@ -41,6 +42,13 @@
 - Do not store large generated content directly in the database.
 - Task run records are first-class relational data — treat ownership and run IDs as verified before any token issuance.
 - Realtime room event records are foundation data for the internal collaboration engine; keep them compact and scoped by project/room/user.
+
+## Runtime Configuration
+
+- Treat only `APP_ENV=local` as local development.
+- Local development may use `http://localhost` and `ws://localhost`; non-local environments require `https://` and `wss://`.
+- Do not guess production URLs, downgrade secure URLs, or fall back to localhost outside local mode.
+- Never log realtime tokens, session cookies, internal service secrets, or signed token values.
 
 ## File Organization
 

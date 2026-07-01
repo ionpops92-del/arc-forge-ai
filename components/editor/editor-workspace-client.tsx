@@ -1,7 +1,5 @@
 "use client"
 
-import { LiveObject, LiveMap } from "@liveblocks/client"
-import { LiveblocksProvider, RoomProvider } from "@liveblocks/react"
 import { useCallback, useRef, useState } from "react"
 import { EditorNavbar } from "@/components/editor/editor-navbar"
 import type { SaveStatus } from "@/hooks/use-canvas-autosave"
@@ -13,6 +11,7 @@ import { AiSidebar } from "@/components/editor/ai-sidebar"
 import { CanvasRoom } from "@/components/editor/canvas/canvas-room"
 import { useProjectActions, type ProjectRow } from "@/hooks/use-project-actions"
 import type { CanvasTemplate } from "@/components/editor/starter-templates"
+import { InternalRealtimeProvider } from "@/hooks/use-realtime-room"
 
 interface EditorWorkspaceClientProps {
   currentProject: ProjectRow
@@ -40,14 +39,7 @@ export function EditorWorkspaceClient({
   const handleSaveReady = useCallback((fn: () => void) => { saveFnRef.current = fn }, [])
 
   return (
-    <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
-      <RoomProvider
-        id={roomId}
-        initialPresence={{ cursor: null, thinking: false }}
-        initialStorage={new LiveObject({
-          flow: new LiveObject({ nodes: new LiveMap(), edges: new LiveMap() }),
-        })}
-      >
+    <InternalRealtimeProvider projectId={currentProject.id} roomId={roomId}>
         <div className="flex h-screen flex-col bg-bg-base">
           <EditorNavbar
             isOpen={sidebarOpen}
@@ -101,7 +93,6 @@ export function EditorWorkspaceClient({
             onImport={(template) => setPendingTemplate(template)}
           />
         </div>
-      </RoomProvider>
-    </LiveblocksProvider>
+    </InternalRealtimeProvider>
   )
 }

@@ -4,9 +4,11 @@ import type {
   RealtimePresence,
   RealtimeServerMessage,
 } from "@/lib/realtime/types"
+import { REALTIME_ROOM_EVENT_TYPES } from "@/lib/realtime/types"
 
 export const MAX_REALTIME_PAYLOAD_BYTES = 64 * 1024
 const MAX_EVENT_TYPE_LENGTH = 120
+const KNOWN_ROOM_EVENT_TYPES = new Set<string>(REALTIME_ROOM_EVENT_TYPES)
 
 interface ParseResultSuccess {
   ok: true
@@ -45,6 +47,35 @@ export function isJsonValue(value: unknown): value is JsonValue {
 
 function isPresence(value: unknown): value is RealtimePresence {
   return isRecord(value) && isJsonValue(value)
+}
+
+function parseRoomEvent(rawEvent: unknown) {
+  if (!isRecord(rawEvent)) {
+    return { ok: false as const, error: "Event payload is required" }
+  }
+
+  const eventType = rawEvent.type
+  const payload = rawEvent.payload
+
+  if (
+    typeof eventType !== "string" ||
+    eventType.trim().length === 0 ||
+    eventType.length > MAX_EVENT_TYPE_LENGTH
+  ) {
+    return { ok: false as const, error: "Event type is invalid" }
+  }
+
+  if (!isJsonValue(payload)) {
+    return { ok: false as const, error: "Event payload must be JSON serializable" }
+  }
+
+  return {
+    ok: true as const,
+    event: {
+      type: eventType,
+      payload,
+    },
+  }
 }
 
 function parseJson(raw: string): unknown {
@@ -103,38 +134,32 @@ export function parseRealtimeClientMessage(
     }
 
     case "event.broadcast": {
-      if (!isRecord(parsed.event)) {
-        return { ok: false, error: "Event payload is required" }
-      }
-
-      const eventType = parsed.event.type
-      const payload = parsed.event.payload
-
-      if (
-        typeof eventType !== "string" ||
-        eventType.trim().length === 0 ||
-        eventType.length > MAX_EVENT_TYPE_LENGTH
-      ) {
-        return { ok: false, error: "Event type is invalid" }
-      }
-
-      if (!isJsonValue(payload)) {
-        return { ok: false, error: "Event payload must be JSON serializable" }
-      }
+      const parsedEvent = parseRoomEvent(parsed.event)
+      if (!parsedEvent.ok) return { ok: false, error: parsedEvent.error }
 
       return {
         ok: true,
         message: {
           type: "event.broadcast",
-          event: {
-            type: eventType,
-            payload,
-          },
+          event: parsedEvent.event,
         },
       }
     }
 
     default:
+      if (KNOWN_ROOM_EVENT_TYPES.has(parsed.type)) {
+        const parsedEvent = parseRoomEvent(parsed)
+        if (!parsedEvent.ok) return { ok: false, error: parsedEvent.error }
+
+        return {
+          ok: true,
+          message: {
+            type: "event.broadcast",
+            event: parsedEvent.event,
+          },
+        }
+      }
+
       return { ok: false, error: "Unsupported message type" }
   }
 }

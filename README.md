@@ -18,7 +18,6 @@
 
 <img src="https://img.shields.io/badge/-Internal_AI_Tasks-22c55e?style=for-the-badge&logo=postgresql&logoColor=white" />
 <img src="https://img.shields.io/badge/-Internal_Realtime-0891b2?style=for-the-badge&logo=websocket&logoColor=white" />
-<img src="https://img.shields.io/badge/-Liveblocks-050505?style=for-the-badge&logo=liveblocks&logoColor=white" />
 <img src="https://img.shields.io/badge/-CodeRabbit-orange?style=for-the-badge&logo=coderabbit&logoColor=white" />
 
   </div>
@@ -63,13 +62,11 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 - **[TypeScript](https://www.typescriptlang.org/)** is a strongly typed superset of JavaScript that adds static type definitions to your code. It significantly improves developer productivity and code reliability by catching errors during development, enhancing IDE support, and facilitating maintainability in large-scale projects.
 
-- **[Liveblocks](https://jsm.dev/ghost-liveblocks)** is a real-time collaboration infrastructure that enables developers to build multiplayer experiences. It provides robust APIs for presence, shared state, and text synchronization, allowing you to easily add collaborative features like cursors, whiteboard tools, and shared document editing to your apps.
-
 - **Internal Authentication** uses server-verified sessions backed by PostgreSQL. Raw session tokens stay in httpOnly cookies, while only hashed tokens and password hashes are stored in the database.
 
 - **Internal AI Task Runner** is a PostgreSQL-backed worker system for durable AI jobs. API routes enqueue task runs after auth/project checks, and a separate worker leases queued runs, records attempts/events, handles retries, and executes design/spec handlers.
 
-- **Internal Realtime Foundation** is a standalone Node/WebSocket service backed by PostgreSQL. It issues short-lived room tokens through authenticated Next.js APIs, verifies room access, tracks ephemeral presence, and broadcasts typed room events side-by-side with Liveblocks.
+- **Internal Realtime Engine** is a standalone Node/WebSocket service backed by PostgreSQL. It issues short-lived room tokens through authenticated Next.js APIs, verifies room access, tracks ephemeral presence, syncs canvas snapshots, and broadcasts typed chat/status room events. React Flow remains the canvas renderer.
 
 - **[Prisma ORM](https://www.prisma.io/)** is a next-generation ORM for Node.js and TypeScript that simplifies database interactions. By providing a type-safe client generated from your schema, it makes querying your database intuitive, readable, and highly efficient, effectively eliminating common SQL-related runtime errors.
 
@@ -83,11 +80,11 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 ## <a name="features">🔋 Features</a>
 
-👉 **AI Architecture Agent**: Submit a plain-English prompt; Gemini draws nodes and edges onto the live canvas in real-time via the internal AI worker and the Liveblocks Node.js SDK.
+👉 **AI Architecture Agent**: Submit a plain-English prompt; Gemini draws nodes and edges onto the live canvas in real time via the internal AI worker and internal realtime engine.
 
-👉 **Multiplayer Canvas**: Full real-time collaboration powered by Liveblocks: synchronized node/edge state, live cursor positions, and presence avatars for every connected user.
+👉 **Multiplayer Canvas**: Full real-time collaboration powered by the internal WebSocket engine: synchronized node/edge state, live cursor positions, and presence avatars for connected users.
 
-👉 **Internal Realtime Foundation**: A dedicated WebSocket service provides authenticated room join, presence update, ping/pong, and generic event broadcast primitives while Liveblocks remains the active canvas runtime.
+👉 **Internal Realtime Engine**: A dedicated WebSocket service provides authenticated room join, presence update, ping/pong, bounded message validation, canvas sync, chat/status events, and strict HTTPS/WSS fail-closed checks outside local development.
 
 👉 **Custom Canvas Nodes**: Double-click to edit node labels inline; select to resize with NodeResizer; choose from 12 colour swatches via a floating NodeToolbar — all synced across clients instantly.
 
@@ -97,7 +94,7 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 👉 **Downloadable Specs**: Every generated spec is available via a dedicated download API route.
 
-👉 **Internal Authentication**: Server-side session checks protect app routes and API routes; Liveblocks tokens are only issued after project access is verified.
+👉 **Internal Authentication**: Server-side session checks protect app routes and API routes; realtime room tokens are only issued after project access is verified.
 
 👉 **Auto-Save Canvas**: The canvas state is debounced-saved to Vercel Blob.
 
@@ -142,8 +139,13 @@ Create a new file named `.env` in the root of your project and add the following
 # Optional internal auth settings
 AUTH_SESSION_COOKIE_NAME=arc_forge_session
 
-LIVEBLOCKS_SECRET_KEY=
-INTERNAL_REALTIME_TOKEN_SECRET=
+APP_ENV=local
+APP_URL=http://localhost:3000
+NEXT_PUBLIC_REALTIME_URL=ws://localhost:3001/ws
+
+INTERNAL_REALTIME_TOKEN_SECRET=arc-forge-local-realtime-secret-change-me
+INTERNAL_REALTIME_SERVICE_SECRET=arc-forge-local-realtime-service-secret-change-me
+INTERNAL_REALTIME_INTERNAL_URL=http://localhost:3001/internal/broadcast
 
 DATABASE_URL=
 BLOB_READ_WRITE_TOKEN=
@@ -158,10 +160,9 @@ GEMINI_MODEL=
 GEMINI_SPEC_MODEL=
 
 ━━━━━━━━━━━━━━━━━━━━
-APP_URL=http://localhost:3000
 ```
 
-Replace the placeholder values with your real credentials. You can get these by signing up at: [**Liveblocks**](https://jsm.dev/ghost-liveblocks), [**Vercel Blob**](https://vercel.com/docs/vercel-blob), and [**Google AI Studio**](https://aistudio.google.com/).
+Replace the placeholder values with your real credentials where required. You can get service keys from [**Vercel Blob**](https://vercel.com/docs/vercel-blob) and [**Google AI Studio**](https://aistudio.google.com/). Local `http://` and `ws://` URLs are local-only; staging, preview, and production must use HTTPS and WSS.
 
 **Running the Project**
 
@@ -170,6 +171,12 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser to view the project.
+
+For the full local Docker stack, start PostgreSQL, the app, the AI worker, and realtime service together:
+
+```bash
+npm run stack:local:up
+```
 
 **Run AI Worker (Background Tasks)**
 
@@ -222,7 +229,7 @@ npm run realtime:server
 │   └── ui/               # Reusable shadcn/ui primitives
 ├── docs/                 # Project documentation
 ├── hooks/                # Custom React hooks (auto-save, keyboard shortcuts)
-├── lib/                  # Shared utilities (Prisma client, Liveblocks, AI tasks)
+├── lib/                  # Shared utilities (Prisma client, auth, AI tasks)
 │   └── ai-tasks/         # Internal AI task service, handlers, worker loop
 │   └── realtime/         # Internal realtime token, protocol, and server modules
 ├── prisma/               # Prisma schema and migrations

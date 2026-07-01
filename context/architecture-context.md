@@ -8,8 +8,8 @@
 | UI               | Tailwind + shadcn/ui    | Component composition and styling                              |
 | Auth             | Internal auth           | User identity, server-side sessions, and route protection      |
 | Database         | Prisma + PostgreSQL     | Relational metadata: projects, collaborators, specs, task runs |
-| Canvas           | Liveblocks + React Flow | Active collaborative canvas runtime and permanent renderer     |
-| Realtime         | Internal WebSocket service | PostgreSQL-backed room token, presence, and event foundation |
+| Canvas           | React Flow              | Permanent canvas renderer and interaction layer                |
+| Realtime         | Internal WebSocket service | Collaboration runtime for room tokens, presence, canvas sync, chat/status events |
 | Background tasks | Internal AI task runner | PostgreSQL-backed durable AI generation workflows              |
 | Artifact storage | Vercel Blob             | Canvas snapshots and generated Markdown specs                  |
 
@@ -41,14 +41,14 @@
 - Only authenticated users can access protected routes.
 - Only the owner or a collaborator can mutate shared project resources.
 - Owner-only project administration remains restricted to the owner.
-- Liveblocks room tokens are issued only after verifying project membership.
 - Internal realtime room tokens are short-lived, signed server-side, scoped to one project room, contain only minimal non-PII claims, and are issued only after verifying project membership.
 - Long-lived WebSocket connections run in the standalone realtime service, not in Next.js route handlers.
+- Local development may use HTTP/WS localhost URLs only when `APP_ENV=local`; every non-local environment must use HTTPS/WSS and fail closed on insecure or missing public URLs.
 
 ## Starter System Designs
 
 - Prebuilt templates are static canvas snapshots stored in the codebase.
-- Templates are loaded into the active Liveblocks room when a user imports one.
+- Templates are loaded into the active internal realtime canvas state when a user imports one.
 - Import can occur on canvas creation or from within the editor at any time.
 - Template data follows the same node/edge schema as user-created canvas content.
 - Templates do not require a separate database record; they are resolved by template ID at import time.
@@ -59,7 +59,7 @@
 
 - Input: user prompt, project context, and current canvas state.
 - Execution: durable background task via the internal PostgreSQL-backed AI task runner.
-- Output: structured node and edge updates written into the shared Liveblocks room. Internal realtime runs side-by-side until the canvas cutover.
+- Output: structured node and edge updates written to Vercel Blob canvas state and published into the internal realtime room.
 
 ### Spec Generation
 
@@ -76,4 +76,5 @@
 5. The canvas schema must remain consistent between user-created content and imported templates.
 6. AI workers lease queued tasks from PostgreSQL before execution; API routes only enqueue tasks after auth and project access checks.
 7. Internal realtime WebSocket connections must use short-lived room tokens and must not expose raw auth/session tokens.
-8. React Flow remains the permanent canvas renderer while the realtime transport is replaced incrementally.
+8. React Flow remains the permanent canvas renderer.
+9. Non-local browser-facing HTTP and WebSocket transport must use HTTPS/WSS and fail closed when secure transport cannot be verified.

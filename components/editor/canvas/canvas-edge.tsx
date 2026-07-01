@@ -3,13 +3,8 @@
 import { useState, useCallback } from "react"
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from "@xyflow/react"
 import type { EdgeProps } from "@xyflow/react"
-import { useMutation } from "@liveblocks/react"
-import { LiveObject } from "@liveblocks/client"
 import type { CanvasEdge } from "@/types/canvas"
-
-type LiveEdgeData = LiveObject<{
-  data: LiveObject<{ label?: string }>
-}>
+import { useCanvasMutations } from "@/components/editor/canvas/canvas-mutation-context"
 
 export function CanvasEdgeComponent({
   id,
@@ -26,15 +21,11 @@ export function CanvasEdgeComponent({
   const [isEditing, setIsEditing] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [draftLabel, setDraftLabel] = useState("")
+  const { updateEdgeData } = useCanvasMutations()
 
-  const updateEdgeLabel = useMutation(
-    ({ storage }, newLabel: string) => {
-      const edge = storage.get("flow").get("edges").get(id)
-      if (!edge) return
-      ;(edge as unknown as LiveEdgeData).get("data").set("label", newLabel)
-    },
-    [id]
-  )
+  const updateEdgeLabel = useCallback((newLabel: string) => {
+    updateEdgeData(id, { label: newLabel })
+  }, [id, updateEdgeData])
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,

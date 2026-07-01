@@ -10,6 +10,8 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Completed
 
+The numbered feature notes below are historical implementation notes. They describe the stack at the time each feature was originally built and may mention dependencies that have since been replaced.
+
 - Feature 01: Design System — shadcn/ui installed and configured for Tailwind v4, dark-only theme tokens in globals.css, Button/Card/Dialog/Input/Tabs/Textarea/ScrollArea components added to components/ui/, lucide-react installed, lib/utils.ts cn() helper in place. TypeScript compiles clean.
 - Feature 02: Editor Chrome — EditorNavbar (fixed top bar with PanelLeftOpen/PanelLeftClose toggle) and ProjectSidebar (fixed overlay, slides from left, Projects title + close button, My Projects/Shared tabs with empty states, New Project button) added to components/editor/. Dialog pattern confirmed ready via existing components/ui/dialog.tsx. TypeScript and ESLint clean.
 - Feature 03: Auth — @clerk/ui installed. ClerkProvider wraps root layout with dark theme from @clerk/ui/themes, overriding appearance variables using CSS tokens (no hardcoded colors). proxy.ts at project root uses clerkMiddleware + createRouteMatcher to protect all routes except /sign-in and /sign-up (resolved from NEXT_PUBLIC_CLERK_SIGN_IN_URL / NEXT_PUBLIC_CLERK_SIGN_UP_URL env vars). Sign-in and sign-up pages use a minimal two-panel layout (left panel with logo/tagline/feature list hidden on mobile, right panel with centered Clerk form). app/page.tsx redirects authenticated users to /editor and unauthenticated users to /sign-in. UserButton added to EditorNavbar right section. app/editor/page.tsx shell created with sidebar state management.
@@ -43,13 +45,14 @@ Update this file whenever the current phase, active feature, or implementation s
 - Internal Auth Foundation: Clerk runtime usage replaced with internal server-side sessions. Added Prisma auth models/migration for User, PasswordCredential, AuthSession, EmailVerificationToken, and PasswordResetToken. Added auth helpers for password hashing, secure token generation/hashing, httpOnly cookies, session creation/revocation, and current-user lookup. Added `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, and `/api/auth/me`. Project APIs, collaborator lookup, Liveblocks auth, AI routes, sign-in/sign-up pages, root layout, editor user menu, proxy.ts, README, and package files now use internal auth. `/api/ai/design` now requires authentication, verifies project access, verifies `roomId === project.id`, and creates tasks only after authorization succeeds. `@clerk/nextjs` and `@clerk/ui` removed; `bcryptjs` and `zod` added. `npx prisma generate`, `npm run lint`, and `npm run build` pass. Local PostgreSQL migration and DB-backed auth smoke tests passed using a temporary Docker Postgres container.
 - Local Docker Runtime: Local development runtime starts PostgreSQL and the Next.js app with a persistent PostgreSQL volume, healthchecks, documented `.env.local` setup, Prisma migration flow, and app access at `http://localhost:3000`.
 - Internal AI Task Runner: Trigger.dev runtime dependencies, token routes, config, and task files replaced with PostgreSQL-backed `AiTaskRun`, `AiTaskEvent`, and `AiTaskAttempt` models. AI APIs now enqueue internal tasks after auth/project checks. `scripts/ai-worker.ts` leases queued tasks, records attempts/events, retries with backoff, and dispatches design/spec handlers. Frontend status tracking now polls `/api/ai/runs/[runId]`. Docker local stack includes the worker service. Validation and auth/task smoke tests passed locally.
+- Internal Realtime Cutover: Liveblocks runtime usage and packages replaced with the internal WebSocket collaboration engine. React Flow remains the permanent canvas renderer. Canvas snapshots, chat/status events, presence, AI worker canvas updates, and room access now use internal room tokens, PostgreSQL-backed room events, Vercel Blob persistence, and fail-closed HTTPS/WSS transport validation for non-local environments.
 
 ## In Progress
 
-- Internal Realtime Foundation — standalone WebSocket service, short-lived minimal non-PII authenticated room tokens, typed presence/event protocol, bounded WebSocket payloads, PostgreSQL-backed room event records, Docker realtime service, and a dev/test client hook.
+- Internal Realtime Hardening — validate the Liveblocks-free collaboration runtime end to end across local Docker, browser sessions, AI worker updates, strict non-local HTTPS/WSS configuration, and persistence recovery.
 
 ## Next Up
-- Cut canvas state, presence, and chat from Liveblocks to the internal realtime engine while keeping React Flow as the canvas renderer.
+- Realtime collaboration stabilization, including conflict handling, reconnection polish, event replay strategy, and production reverse-proxy guidance.
 
 
 
@@ -70,7 +73,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - shadcn version 4.5.0 was used; it auto-detected Tailwind v4.
 - lucide-react ^1.11.0 installed as a direct dependency.
 - Clerk packages removed from runtime dependencies. Internal auth currently uses bcryptjs ^3.0.3 for password hashing and zod ^3.25.76 for request validation.
-- @liveblocks/node installed alongside existing @liveblocks/client, @liveblocks/react, @liveblocks/react-flow, @liveblocks/react-ui. Liveblocks client uses lazy init (getLiveblocks()) to avoid key validation errors at build time.
+- Liveblocks packages were part of the historical collaboration stack and have been replaced by the internal realtime WebSocket runtime.
 - @vercel/blob ^2.3.3 installed. BLOB_READ_WRITE_TOKEN set in .env.local.
 - Trigger.dev runtime packages and config were replaced by the internal PostgreSQL-backed AI task runner.
 - Prisma 7.8.0 — generated client goes to app/generated/prisma/; import PrismaClient from @/app/generated/prisma/client (no index.ts in v7). Constructor always requires { adapter } argument. @prisma/adapter-pg used for all connections.

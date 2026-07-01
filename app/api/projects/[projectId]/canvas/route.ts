@@ -1,6 +1,6 @@
-import { get, put } from "@vercel/blob"
-import { prisma } from "@/lib/prisma"
 import { getCurrentProjectIdentity, userHasProjectAccess } from "@/lib/project-access"
+import { readCanvasSnapshot, writeCanvasSnapshot } from "@/lib/canvas/canvas-persistence"
+import { sanitizeCanvasSnapshot } from "@/lib/canvas/canvas-state"
 import type { NextRequest } from "next/server"
 
 export async function GET(
@@ -14,17 +14,7 @@ export async function GET(
   const hasAccess = await userHasProjectAccess(projectId, identity)
   if (!hasAccess) return Response.json({ error: "Not found" }, { status: 404 })
 
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { canvasBlobUrl: true },
-  })
-
-  if (!project?.canvasBlobUrl) return Response.json({ canvas: null })
-
-  const result = await get(project.canvasBlobUrl, { access: "private" })
-  if (!result || result.statusCode !== 200 || !result.stream) return Response.json({ canvas: null })
-
-  const canvas: unknown = await new Response(result.stream).json()
+  const canvas = await readCanvasSnapshot(projectId)
   return Response.json({ canvas })
 }
 
@@ -40,17 +30,7 @@ export async function PUT(
   if (!hasAccess) return Response.json({ error: "Not found" }, { status: 404 })
 
   const body: unknown = await request.json().catch(() => ({}))
-  const blob = await put(`canvas/${projectId}.json`, JSON.stringify(body), {
-    access: "private",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  })
+  const { url } = await writeCanvasSnapshot(projectId, sanitizeCanvasSnapshot(body))
 
-  await prisma.project.update({
-    where: { id: projectId },
-    data: { canvasBlobUrl: blob.url },
-  })
-
-  return Response.json({ url: blob.url })
+  return Response.json({ url })
 }
