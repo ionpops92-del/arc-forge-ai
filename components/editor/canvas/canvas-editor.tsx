@@ -13,7 +13,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { useReactFlow } from "@xyflow/react"
-import type { Connection, EdgeChange, NodeChange } from "@xyflow/react"
+import type { Connection, EdgeChange, NodeChange, OnReconnect } from "@xyflow/react"
 import type { CanvasNode, CanvasEdge, NodeShape } from "@/types/canvas"
 import { NODE_COLORS } from "@/types/canvas"
 import { CanvasNodeComponent } from "@/components/editor/canvas/canvas-node"
@@ -54,6 +54,22 @@ function generateEdgeId(): string {
 type NodeSelectionChange = Extract<NodeChange<CanvasNode>, { type: "select" }>
 type EdgeSelectionChange = Extract<EdgeChange<CanvasEdge>, { type: "select" }>
 
+interface SelectionBox {
+  pointerId: number
+  edgeId: string | null
+  startX: number
+  startY: number
+  currentX: number
+  currentY: number
+}
+
+interface SelectionBoxBounds {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
 function isNodeSelectionChange(
   change: NodeChange<CanvasNode>
 ): change is NodeSelectionChange {
@@ -79,6 +95,78 @@ function applySelectionChanges<T extends { id: string; selected: boolean }>(
     }
   }
   return next
+}
+
+function selectionBoxBounds(box: SelectionBox): SelectionBoxBounds {
+  return {
+    left: Math.min(box.startX, box.currentX),
+    top: Math.min(box.startY, box.currentY),
+    width: Math.abs(box.currentX - box.startX),
+    height: Math.abs(box.currentY - box.startY),
+  }
+}
+
+function selectionBoxStyle(box: SelectionBox): React.CSSProperties {
+  return selectionBoxBounds(box)
+}
+
+function isSelectionPaneTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false
+  if (!target.closest(".react-flow__pane, .react-flow__edge")) return false
+
+  return !target.closest(
+    [
+      ".react-flow__node",
+      ".react-flow__edgeupdater",
+      ".react-flow__edgelabel-renderer",
+      ".nodrag",
+      ".nopan",
+      "button",
+      "input",
+      "textarea",
+      "select",
+      "[contenteditable='true']",
+    ].join(",")
+  )
+}
+
+function getEdgeIdFromTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return null
+
+  return target.closest(".react-flow__edge")?.getAttribute("data-id") ?? null
+}
+
+function rectsIntersect(
+  a: { left: number; right: number; top: number; bottom: number },
+  b: { left: number; right: number; top: number; bottom: number }
+) {
+  return (
+    a.right >= b.left &&
+    a.left <= b.right &&
+    a.bottom >= b.top &&
+    a.top <= b.bottom
+  )
+}
+
+function expandedElementRect(element: Element, padding = 0) {
+  const rect = element.getBoundingClientRect()
+  return {
+    left: rect.left - padding,
+    right: rect.right + padding,
+    top: rect.top - padding,
+    bottom: rect.bottom + padding,
+  }
+}
+
+function localPointerPoint(
+  event: React.PointerEvent<HTMLDivElement>,
+  element: HTMLElement
+) {
+  const rect = element.getBoundingClientRect()
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
 }
 
 interface CanvasEditorProps {
@@ -119,6 +207,9 @@ export function CanvasEditor({
   )
   const selectedNodeIdsRef = useRef(selectedNodeIds)
   const selectedEdgeIdsRef = useRef(selectedEdgeIds)
+  const selectionBoxRef = useRef<SelectionBox | null>(null)
+  const suppressSelectionMouseEventsRef = useRef(false)
+  const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null)
   const [historyState, setHistoryState] = useState({
     canUndo: false,
     canRedo: false,
@@ -286,7 +377,28 @@ export function CanvasEditor({
         })
       }
 
-      const nextEdges = applyEdgeChanges(durableChanges, edgesRef.current)
+      const normalizedDurableChanges: EdgeChange<CanvasEdge>[] = durableChanges.map(
+        (change) => {
+          if (change.type !== "replace") return change
+
+          const previousEdge = edgesRef.current.find((edge) => edge.id === change.id)
+          return {
+            ...change,
+            item: {
+              ...(previousEdge ?? change.item),
+              ...change.item,
+              id: change.id,
+              type: "canvasEdge",
+              data: {
+                ...(previousEdge?.data ?? {}),
+                ...(change.item.data ?? {}),
+              },
+            },
+          }
+        }
+      )
+
+      const nextEdges = applyEdgeChanges(normalizedDurableChanges, edgesRef.current)
       commitCanvas(nodesRef.current, nextEdges)
     },
     [commitCanvas]
@@ -322,6 +434,164 @@ export function CanvasEditor({
     setSelectedNodeIds(emptyNodeSelection)
     setSelectedEdgeIds(emptyEdgeSelection)
   }, [])
+
+  const selectItemsInBox = useCallback(
+    (box: SelectionBox) => {
+      const wrapper = wrapperRef.current
+      if (!wrapper) return
+
+      const boxStyle = selectionBoxBounds(box)
+      if (boxStyle.width < 4 && boxStyle.height < 4) {
+        if (box.edgeId) {
+          const nextSelectedEdgeIds = new Set([box.edgeId])
+          const emptyNodeSelection = new Set<string>()
+          selectedNodeIdsRef.current = emptyNodeSelection
+          selectedEdgeIdsRef.current = nextSelectedEdgeIds
+          setSelectedNodeIds(emptyNodeSelection)
+          setSelectedEdgeIds(nextSelectedEdgeIds)
+        } else {
+          clearSelection()
+        }
+
+        return
+      }
+
+      const wrapperRect = wrapper.getBoundingClientRect()
+      const selectionRect = {
+        left: wrapperRect.left + boxStyle.left,
+        top: wrapperRect.top + boxStyle.top,
+        right: wrapperRect.left + boxStyle.left + boxStyle.width,
+        bottom: wrapperRect.top + boxStyle.top + boxStyle.height,
+      }
+      const nextSelectedNodeIds = new Set<string>()
+      const nextSelectedEdgeIds = new Set<string>()
+
+      for (const element of wrapper.querySelectorAll<HTMLElement>(
+        ".react-flow__node"
+      )) {
+        const nodeId = element.dataset.id
+        if (!nodeId) continue
+
+        if (rectsIntersect(expandedElementRect(element), selectionRect)) {
+          nextSelectedNodeIds.add(nodeId)
+        }
+      }
+
+      for (const element of wrapper.querySelectorAll<HTMLElement>(
+        ".react-flow__edge"
+      )) {
+        const edgeId = element.dataset.id
+        if (!edgeId) continue
+
+        const candidateElements = [
+          element,
+          ...Array.from(element.querySelectorAll("path")),
+        ]
+        const intersects = candidateElements.some((candidate) =>
+          rectsIntersect(expandedElementRect(candidate, 10), selectionRect)
+        )
+
+        if (intersects) nextSelectedEdgeIds.add(edgeId)
+      }
+
+      selectedNodeIdsRef.current = nextSelectedNodeIds
+      selectedEdgeIdsRef.current = nextSelectedEdgeIds
+      setSelectedNodeIds(nextSelectedNodeIds)
+      setSelectedEdgeIds(nextSelectedEdgeIds)
+    },
+    [clearSelection]
+  )
+
+  const onSelectionPointerDownCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return
+      if (!isSelectionPaneTarget(event.target)) return
+
+      const wrapper = wrapperRef.current
+      if (!wrapper) return
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const point = localPointerPoint(event, wrapper)
+      const box: SelectionBox = {
+        pointerId: event.pointerId,
+        edgeId: getEdgeIdFromTarget(event.target),
+        startX: point.x,
+        startY: point.y,
+        currentX: point.x,
+        currentY: point.y,
+      }
+
+      wrapper.setPointerCapture(event.pointerId)
+      selectionBoxRef.current = box
+      suppressSelectionMouseEventsRef.current = true
+      setSelectionBox(box)
+      clearSelection()
+    },
+    [clearSelection]
+  )
+
+  const onSelectionPointerMoveCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const currentBox = selectionBoxRef.current
+      const wrapper = wrapperRef.current
+      if (!currentBox || !wrapper || currentBox.pointerId !== event.pointerId) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const point = localPointerPoint(event, wrapper)
+      const nextBox = {
+        ...currentBox,
+        currentX: point.x,
+        currentY: point.y,
+      }
+
+      selectionBoxRef.current = nextBox
+      setSelectionBox(nextBox)
+    },
+    []
+  )
+
+  const onSelectionPointerUpCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const currentBox = selectionBoxRef.current
+      const wrapper = wrapperRef.current
+      if (!currentBox || !wrapper || currentBox.pointerId !== event.pointerId) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      if (wrapper.hasPointerCapture(event.pointerId)) {
+        wrapper.releasePointerCapture(event.pointerId)
+      }
+
+      selectionBoxRef.current = null
+      setSelectionBox(null)
+      selectItemsInBox(currentBox)
+      window.setTimeout(() => {
+        suppressSelectionMouseEventsRef.current = false
+      }, 0)
+    },
+    [selectItemsInBox]
+  )
+
+  const suppressSelectionMouseEvent = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!selectionBoxRef.current && !suppressSelectionMouseEventsRef.current) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+    },
+    []
+  )
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -399,7 +669,7 @@ export function CanvasEditor({
         sourceHandle: connection.sourceHandle ?? null,
         targetHandle: connection.targetHandle ?? null,
         type: "canvasEdge",
-        data: { label: "" },
+        data: { label: "", labels: [] },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           color: "rgba(255,255,255,0.4)",
@@ -409,6 +679,26 @@ export function CanvasEditor({
       }
 
       commitCanvas(nodesRef.current, [...edgesRef.current, nextEdge])
+    },
+    [commitCanvas]
+  )
+
+  const onReconnect = useCallback<OnReconnect<CanvasEdge>>(
+    (oldEdge, newConnection) => {
+      if (!newConnection.source || !newConnection.target) return
+
+      const nextEdges = edgesRef.current.map((edge) =>
+        edge.id === oldEdge.id
+          ? {
+              ...edge,
+              source: newConnection.source,
+              target: newConnection.target,
+              sourceHandle: newConnection.sourceHandle,
+              targetHandle: newConnection.targetHandle,
+            }
+          : edge
+      )
+      commitCanvas(nodesRef.current, nextEdges)
     },
     [commitCanvas]
   )
@@ -475,6 +765,36 @@ export function CanvasEditor({
         )
         commitCanvas(nodesRef.current, nextEdges)
       },
+      deleteNode: (nodeId: string) => {
+        const selectedNodeIds = selectedNodeIdsRef.current
+        const nodeIdsToDelete = selectedNodeIds.has(nodeId)
+          ? selectedNodeIds
+          : new Set([nodeId])
+        const nextNodes = nodesRef.current.filter(
+          (node) => !nodeIdsToDelete.has(node.id)
+        )
+        const nextEdges = edgesRef.current.filter(
+          (edge) =>
+            !nodeIdsToDelete.has(edge.source) &&
+            !nodeIdsToDelete.has(edge.target)
+        )
+        const emptyNodeSelection = new Set<string>()
+        const emptyEdgeSelection = new Set<string>()
+        selectedNodeIdsRef.current = emptyNodeSelection
+        selectedEdgeIdsRef.current = emptyEdgeSelection
+        setSelectedNodeIds(emptyNodeSelection)
+        setSelectedEdgeIds(emptyEdgeSelection)
+        commitCanvas(nextNodes, nextEdges)
+      },
+      deleteEdge: (edgeId: string) => {
+        const nextSelectedEdgeIds = new Set(selectedEdgeIdsRef.current)
+        nextSelectedEdgeIds.delete(edgeId)
+        selectedEdgeIdsRef.current = nextSelectedEdgeIds
+        setSelectedEdgeIds(nextSelectedEdgeIds)
+
+        const nextEdges = edgesRef.current.filter((edge) => edge.id !== edgeId)
+        commitCanvas(nodesRef.current, nextEdges)
+      },
       upsertEdge: (edge: CanvasEdge) => {
         const nextEdges = [
           ...edgesRef.current.filter((existing) => existing.id !== edge.id),
@@ -495,6 +815,13 @@ export function CanvasEditor({
         onDrop={onDrop}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
+        onPointerDownCapture={onSelectionPointerDownCapture}
+        onPointerMoveCapture={onSelectionPointerMoveCapture}
+        onPointerUpCapture={onSelectionPointerUpCapture}
+        onMouseDownCapture={suppressSelectionMouseEvent}
+        onMouseMoveCapture={suppressSelectionMouseEvent}
+        onMouseUpCapture={suppressSelectionMouseEvent}
+        onClickCapture={suppressSelectionMouseEvent}
       >
         <ReactFlow
           nodes={displayedNodes}
@@ -502,12 +829,17 @@ export function CanvasEditor({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onReconnect={onReconnect}
           onPaneClick={clearSelection}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           connectionMode={ConnectionMode.Loose}
           connectionLineStyle={CONNECTION_LINE_STYLE}
           connectionLineType={ConnectionLineType.SmoothStep}
+          panOnDrag={[1, 2]}
+          edgesReconnectable
+          reconnectRadius={16}
+          deleteKeyCode={null}
           className="bg-bg-base"
         >
           <Background
@@ -517,6 +849,12 @@ export function CanvasEditor({
             color="var(--color-border-subtle)"
           />
         </ReactFlow>
+        {selectionBox ? (
+          <div
+            className="pointer-events-none absolute z-30 rounded border border-accent-primary/60 bg-accent-primary/10 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+            style={selectionBoxStyle(selectionBox)}
+          />
+        ) : null}
         <CanvasControls
           onZoomIn={() => zoomIn({ duration: 200 })}
           onZoomOut={() => zoomOut({ duration: 200 })}

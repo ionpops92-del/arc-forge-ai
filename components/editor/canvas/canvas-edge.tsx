@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from "@xyflow/react"
 import type { EdgeProps } from "@xyflow/react"
-import { Plus, X } from "lucide-react"
+import { Plus, Trash2, X } from "lucide-react"
 import type { CanvasEdge, CanvasEdgeData } from "@/types/canvas"
 import { useCanvasMutations } from "@/components/editor/canvas/canvas-mutation-context"
 
@@ -37,7 +37,10 @@ export function CanvasEdgeComponent({
   const [editingTarget, setEditingTarget] = useState<EditingTarget>(null)
   const [isHovered, setIsHovered] = useState(false)
   const [draftLabel, setDraftLabel] = useState("")
-  const { updateEdgeData } = useCanvasMutations()
+  const draftLabelRef = useRef("")
+  const hasCommittedEditRef = useRef(false)
+  const labelEditorRef = useRef<HTMLDivElement>(null)
+  const { deleteEdge, updateEdgeData } = useCanvasMutations()
   const labels = useMemo(() => normalizeLabels(data), [data])
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
@@ -52,6 +55,7 @@ export function CanvasEdgeComponent({
 
   const isEditing = editingTarget !== null
   const isActive = selected || isHovered || isEditing
+  const showCompactAddButton = labels.length > 0 || !isActive
   const stroke = isActive ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.35)"
 
   const updateLabels = useCallback(
@@ -72,7 +76,10 @@ export function CanvasEdgeComponent({
   const startEditing = useCallback(
     (target: EditingTarget) => (event: React.MouseEvent) => {
       event.stopPropagation()
-      setDraftLabel(typeof target === "number" ? labels[target] ?? "" : "")
+      const nextDraft = typeof target === "number" ? labels[target] ?? "" : ""
+      draftLabelRef.current = nextDraft
+      hasCommittedEditRef.current = false
+      setDraftLabel(nextDraft)
       setEditingTarget(target)
     },
     [labels]
@@ -81,8 +88,10 @@ export function CanvasEdgeComponent({
   const commitEdit = useCallback(
     (nextValue?: string) => {
       if (editingTarget === null) return
+      if (hasCommittedEditRef.current) return
+      hasCommittedEditRef.current = true
 
-      const value = (nextValue ?? draftLabel).trim()
+      const value = (nextValue ?? draftLabelRef.current).trim()
       if (editingTarget === "new") {
         if (value) updateLabels([...labels, value])
       } else {
@@ -96,9 +105,10 @@ export function CanvasEdgeComponent({
       }
 
       setEditingTarget(null)
+      draftLabelRef.current = ""
       setDraftLabel("")
     },
-    [draftLabel, editingTarget, labels, updateLabels]
+    [editingTarget, labels, updateLabels]
   )
 
   const deleteLabel = useCallback(
@@ -108,6 +118,14 @@ export function CanvasEdgeComponent({
       updateLabels(nextLabels)
     },
     [labels, updateLabels]
+  )
+
+  const handleDeleteEdge = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation()
+      deleteEdge(id)
+    },
+    [deleteEdge, id]
   )
 
   const handleKeyDown = useCallback(
@@ -120,11 +138,27 @@ export function CanvasEdgeComponent({
       if (event.key === "Escape") {
         event.preventDefault()
         setEditingTarget(null)
+        draftLabelRef.current = ""
         setDraftLabel("")
       }
     },
     [commitEdit]
   )
+
+  useEffect(() => {
+    if (editingTarget === null) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (labelEditorRef.current?.contains(target)) return
+
+      commitEdit()
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true)
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true)
+  }, [commitEdit, editingTarget])
 
   return (
     <>
@@ -150,12 +184,15 @@ export function CanvasEdgeComponent({
       />
       <EdgeLabelRenderer>
         <div
+          ref={labelEditorRef}
           style={{
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             pointerEvents: "all",
           }}
           className="nodrag nopan flex flex-col items-center gap-1"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
           {labels.map((label, index) => (
             <div
@@ -169,7 +206,10 @@ export function CanvasEdgeComponent({
                 <input
                   autoFocus
                   value={draftLabel}
-                  onChange={(event) => setDraftLabel(event.target.value)}
+                  onChange={(event) => {
+                    draftLabelRef.current = event.target.value
+                    setDraftLabel(event.target.value)
+                  }}
                   onBlur={(event) => commitEdit(event.currentTarget.value)}
                   onKeyDown={handleKeyDown}
                   onFocus={(event) => event.target.select()}
@@ -201,31 +241,56 @@ export function CanvasEdgeComponent({
             </div>
           ))}
 
-          {editingTarget === "new" ? (
-            <input
-              autoFocus
-              value={draftLabel}
-              onChange={(event) => setDraftLabel(event.target.value)}
-              onBlur={(event) => commitEdit(event.currentTarget.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={(event) => event.target.select()}
-              className="w-32 rounded-full border border-accent-ai/40 bg-bg-surface px-3 py-1 text-center text-xs text-text-primary shadow-xl outline-none"
-              placeholder="Edge label"
-              aria-label="New edge label"
-            />
-          ) : selected ? (
-            <button
-              type="button"
-              onClick={startEditing("new")}
-              onMouseDown={(event) => event.stopPropagation()}
-              onPointerDown={(event) => event.stopPropagation()}
-              className="flex items-center gap-1 rounded-full border border-accent-ai/30 bg-accent-ai/10 px-2.5 py-1 text-[11px] font-medium text-accent-ai-text shadow-xl transition-colors hover:border-accent-ai/60 hover:bg-accent-ai/20"
-              title="Add edge label"
-            >
-              <Plus className="h-3 w-3" />
-              {labels.length > 0 ? "label" : "double-click or add label"}
-            </button>
-          ) : null}
+          <div className="flex items-center gap-1">
+            {editingTarget === "new" ? (
+              <input
+                autoFocus
+                value={draftLabel}
+                onChange={(event) => {
+                  draftLabelRef.current = event.target.value
+                  setDraftLabel(event.target.value)
+                }}
+                onBlur={(event) => commitEdit(event.currentTarget.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={(event) => event.target.select()}
+                className="w-32 rounded-full border border-accent-ai/40 bg-bg-surface px-3 py-1 text-center text-xs text-text-primary shadow-xl outline-none"
+                placeholder="Edge label"
+                aria-label="New edge label"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={startEditing("new")}
+                onMouseDown={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+                className={
+                  showCompactAddButton
+                    ? "flex h-6 w-6 items-center justify-center rounded-full border border-accent-ai/40 bg-bg-surface/95 text-accent-ai-text shadow-xl transition-colors hover:border-accent-ai/70 hover:bg-accent-ai/15"
+                    : "flex items-center gap-1 rounded-full border border-accent-ai/30 bg-accent-ai/10 px-2.5 py-1 text-[11px] font-medium text-accent-ai-text shadow-xl transition-colors hover:border-accent-ai/60 hover:bg-accent-ai/20"
+                }
+                title="Add edge label"
+              >
+                <Plus className="h-3 w-3" />
+                {showCompactAddButton ? (
+                  <span className="sr-only">Add label</span>
+                ) : (
+                  "Add label"
+                )}
+              </button>
+            )}
+            {selected ? (
+              <button
+                type="button"
+                onClick={handleDeleteEdge}
+                onMouseDown={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+                className="flex h-6 w-6 items-center justify-center rounded-full border border-state-error/35 bg-bg-surface/95 text-state-error shadow-xl transition-colors hover:border-state-error/70 hover:bg-state-error/10"
+                title="Delete edge"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            ) : null}
+          </div>
         </div>
       </EdgeLabelRenderer>
     </>

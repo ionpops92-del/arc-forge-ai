@@ -6,6 +6,8 @@ import type { CanvasEdge, CanvasEdgeData, CanvasNodeData } from "@/types/canvas"
 interface CanvasMutationContextValue {
   updateNodeData: (nodeId: string, patch: Partial<CanvasNodeData>) => void
   updateEdgeData: (edgeId: string, patch: Partial<CanvasEdgeData>) => void
+  deleteNode: (nodeId: string) => void
+  deleteEdge: (edgeId: string) => void
   upsertEdge: (edge: CanvasEdge) => void
 }
 

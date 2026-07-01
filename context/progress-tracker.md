@@ -6,7 +6,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Self-Owned Infrastructure Foundation
 
 ## Current Goal
-- Stabilize the self-owned runtime foundation, harden production deployment paths, and polish collaboration reliability while preserving the product experience.
+- Stabilize the self-owned runtime foundation, harden production deployment paths, and polish collaboration and canvas editing reliability while preserving the product experience.
 
 ## Completed
 
@@ -53,6 +53,7 @@ The numbered feature notes below are historical implementation notes. They descr
 
 ## In Progress
 
+- Canvas Interaction UX — improve rectangle selection, group move/delete, node and edge label affordances, edge reconnect, and visible canvas controls help while keeping React Flow as the renderer and selection state local-only.
 - Foundation stabilization and production hardening — verify the internal auth, account recovery, AI task runner, realtime, storage, and AI provider foundation under realistic local workflows, then tighten deployment guidance and operational edge cases.
 
 ## Next Up
