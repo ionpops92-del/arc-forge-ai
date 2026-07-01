@@ -14,7 +14,7 @@ import {
   getAppEnv,
   isLocalAppEnv,
 } from "@/lib/config/runtime-env"
-import { getInternalRealtimeServiceSecret } from "@/lib/realtime/realtime-url"
+import { getInternalRealtimeServiceSecret } from "@/lib/realtime/internal-realtime-url"
 import {
   MAX_REALTIME_PAYLOAD_BYTES,
   parseRealtimeClientMessage,

@@ -1,3 +1,11 @@
+import {
+  RuntimeConfigError,
+  isLocalHostname,
+  parseConfiguredUrl,
+} from "@/lib/config/runtime-common"
+
+export { RuntimeConfigError, isLocalHostname }
+
 export const APP_ENV_VALUES = [
   "local",
   "development",
@@ -6,12 +14,6 @@ export const APP_ENV_VALUES = [
 ] as const
 
 export type AppEnv = (typeof APP_ENV_VALUES)[number] | string
-
-export class RuntimeConfigError extends Error {
-  constructor(message: string) {
-    super(message)
-  }
-}
 
 export function getAppEnv(): AppEnv {
   return process.env.APP_ENV?.trim() || "development"
@@ -32,24 +34,6 @@ export function getRequiredEnv(name: string) {
   }
 
   return value
-}
-
-export function isLocalHostname(hostname: string) {
-  const normalized = hostname.toLowerCase()
-  return (
-    normalized === "localhost" ||
-    normalized === "127.0.0.1" ||
-    normalized === "::1" ||
-    normalized.endsWith(".localhost")
-  )
-}
-
-function parseConfiguredUrl(value: string, name: string) {
-  try {
-    return new URL(value)
-  } catch {
-    throw new RuntimeConfigError(`${name} must be a valid URL`)
-  }
 }
 
 export function assertBrowserHttpUrl(value: string, name: string) {

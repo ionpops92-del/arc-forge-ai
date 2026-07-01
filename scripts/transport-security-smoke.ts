@@ -4,6 +4,8 @@ import {
   assertBrowserHttpUrl,
   assertBrowserWebSocketUrl,
 } from "@/lib/config/runtime-env"
+import { assertPublicBrowserWebSocketUrl } from "@/lib/config/public-runtime-env"
+import { getInternalRealtimePublishUrl } from "@/lib/realtime/internal-realtime-url"
 import { getPublicRealtimeUrl } from "@/lib/realtime/realtime-url"
 import { POST as realtimeTokenPost } from "@/app/api/realtime/token/route"
 
@@ -20,35 +22,71 @@ function expectRuntimeConfigError(fn: () => unknown) {
 async function main() {
   try {
     process.env.APP_ENV = "local"
+    process.env.NEXT_PUBLIC_APP_ENV = "local"
     assert.equal(
       assertBrowserHttpUrl("http://localhost:3000", "APP_URL").toString(),
       "http://localhost:3000/"
     )
     assert.equal(
-      assertBrowserWebSocketUrl(
+      assertPublicBrowserWebSocketUrl(
         "ws://localhost:3001/ws",
-        "NEXT_PUBLIC_REALTIME_URL"
+        "NEXT_PUBLIC_REALTIME_URL",
+        "localhost"
       ).toString(),
       "ws://localhost:3001/ws"
     )
+    assert.equal(
+      assertBrowserWebSocketUrl(
+        "ws://localhost:3001/ws",
+        "SERVER_REALTIME_URL"
+      ).toString(),
+      "ws://localhost:3001/ws"
+    )
+    delete process.env.NEXT_PUBLIC_REALTIME_URL
+    assert.equal(getPublicRealtimeUrl(), "ws://localhost:3001/ws")
+    delete process.env.INTERNAL_REALTIME_INTERNAL_URL
+    assert.equal(
+      getInternalRealtimePublishUrl(),
+      "http://localhost:3001/internal/broadcast"
+    )
 
     process.env.APP_ENV = "staging"
+    process.env.NEXT_PUBLIC_APP_ENV = "staging"
     expectRuntimeConfigError(() =>
       assertBrowserHttpUrl("http://example.com", "APP_URL")
     )
     expectRuntimeConfigError(() =>
-      assertBrowserWebSocketUrl("ws://example.com/ws", "NEXT_PUBLIC_REALTIME_URL")
+      assertPublicBrowserWebSocketUrl(
+        "ws://example.com/ws",
+        "NEXT_PUBLIC_REALTIME_URL",
+        "example.com"
+      )
     )
     assert.equal(
       assertBrowserHttpUrl("https://example.com", "APP_URL").toString(),
       "https://example.com/"
     )
     assert.equal(
-      assertBrowserWebSocketUrl(
+      assertPublicBrowserWebSocketUrl(
         "wss://example.com/ws",
-        "NEXT_PUBLIC_REALTIME_URL"
+        "NEXT_PUBLIC_REALTIME_URL",
+        "example.com"
       ).toString(),
       "wss://example.com/ws"
+    )
+    expectRuntimeConfigError(() =>
+      assertPublicBrowserWebSocketUrl(
+        "ws://localhost:3001/ws",
+        "NEXT_PUBLIC_REALTIME_URL",
+        "example.com"
+      )
+    )
+    expectRuntimeConfigError(() => getInternalRealtimePublishUrl())
+    process.env.INTERNAL_REALTIME_INTERNAL_URL =
+      "http://realtime:3001/internal/broadcast"
+    assert.equal(
+      getInternalRealtimePublishUrl(),
+      "http://realtime:3001/internal/broadcast"
     )
 
     delete process.env.NEXT_PUBLIC_REALTIME_URL

@@ -46,6 +46,7 @@ The numbered feature notes below are historical implementation notes. They descr
 - Local Docker Runtime: Local development runtime starts PostgreSQL and the Next.js app with a persistent PostgreSQL volume, healthchecks, documented `.env.local` setup, Prisma migration flow, and app access at `http://localhost:3000`.
 - Internal AI Task Runner: Trigger.dev runtime dependencies, token routes, config, and task files replaced with PostgreSQL-backed `AiTaskRun`, `AiTaskEvent`, and `AiTaskAttempt` models. AI APIs now enqueue internal tasks after auth/project checks. `scripts/ai-worker.ts` leases queued tasks, records attempts/events, retries with backoff, and dispatches design/spec handlers. Frontend status tracking now polls `/api/ai/runs/[runId]`. Docker local stack includes the worker service. Validation and auth/task smoke tests passed locally.
 - Internal Realtime Cutover: Liveblocks runtime usage and packages replaced with the internal WebSocket collaboration engine. React Flow remains the permanent canvas renderer. Canvas snapshots, chat/status events, presence, AI worker canvas updates, and room access now use internal room tokens, PostgreSQL-backed room events, Vercel Blob persistence, and fail-closed HTTPS/WSS transport validation for non-local environments.
+- Realtime Transport Config Hardening: browser realtime URL validation now uses browser-safe public environment mode, server-only transport validation remains private, and internal realtime publish URL fallback to localhost is limited to explicit local server mode.
 
 ## In Progress
 

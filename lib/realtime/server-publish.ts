@@ -2,7 +2,7 @@ import type { RealtimeRoomEvent } from "@/lib/realtime/types"
 import {
   getInternalRealtimePublishUrl,
   getInternalRealtimeServiceSecret,
-} from "@/lib/realtime/realtime-url"
+} from "@/lib/realtime/internal-realtime-url"
 
 export interface PublishRealtimeRoomEventInput {
   projectId: string

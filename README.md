@@ -140,6 +140,7 @@ Create a new file named `.env` in the root of your project and add the following
 AUTH_SESSION_COOKIE_NAME=arc_forge_session
 
 APP_ENV=local
+NEXT_PUBLIC_APP_ENV=local
 APP_URL=http://localhost:3000
 NEXT_PUBLIC_REALTIME_URL=ws://localhost:3001/ws
 
@@ -162,7 +163,7 @@ GEMINI_SPEC_MODEL=
 ━━━━━━━━━━━━━━━━━━━━
 ```
 
-Replace the placeholder values with your real credentials where required. You can get service keys from [**Vercel Blob**](https://vercel.com/docs/vercel-blob) and [**Google AI Studio**](https://aistudio.google.com/). Local `http://` and `ws://` URLs are local-only; staging, preview, and production must use HTTPS and WSS.
+Replace the placeholder values with your real credentials where required. You can get service keys from [**Vercel Blob**](https://vercel.com/docs/vercel-blob) and [**Google AI Studio**](https://aistudio.google.com/). Local `http://` and `ws://` URLs are local-only. Browser code uses `NEXT_PUBLIC_APP_ENV=local` to permit localhost WS during local development; staging, preview, and production must use HTTPS and WSS.
 
 **Running the Project**
 

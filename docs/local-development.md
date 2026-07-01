@@ -55,6 +55,7 @@ The worker container waits for the app healthcheck, then starts the internal Pos
 The realtime container waits for PostgreSQL and the app healthcheck, then starts the internal WebSocket service. It provides authenticated room tokens, room joins, presence updates, chat/status events, canvas synchronization, and bounded payload handling. React Flow remains the canvas renderer.
 
 Local HTTP and WS URLs are development-only. Any staging, preview, or production environment must use HTTPS for the app and WSS for the realtime WebSocket URL; insecure non-local configuration fails closed.
+The browser bundle uses `NEXT_PUBLIC_APP_ENV=local` to allow `ws://localhost:3001/ws` only for local browser sessions. Server-side services use `APP_ENV=local`; internal realtime publish URL fallback to localhost is local-only.
 
 Open:
 
@@ -141,6 +142,7 @@ Full AI and artifact persistence behavior requires additional keys in `.env.loca
 
 - `INTERNAL_REALTIME_TOKEN_SECRET` for internal realtime room token signing. Docker local mode provides a development-only placeholder if no local value is set.
 - `INTERNAL_REALTIME_SERVICE_SECRET` for app/worker-to-realtime internal publish calls. Docker local mode provides a development-only placeholder if no local value is set.
+- `NEXT_PUBLIC_APP_ENV=local` and `NEXT_PUBLIC_REALTIME_URL=ws://localhost:3001/ws` for local browser realtime connections.
 - `BLOB_READ_WRITE_TOKEN` for Vercel Blob canvas/spec persistence.
 - `GOOGLE_AI_API_KEY` for Gemini-backed AI design/spec generation.
 

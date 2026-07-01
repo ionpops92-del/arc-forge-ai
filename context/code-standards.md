@@ -45,9 +45,10 @@
 
 ## Runtime Configuration
 
-- Treat only `APP_ENV=local` as local development.
+- Treat only `APP_ENV=local` as server local development.
+- Treat only `NEXT_PUBLIC_APP_ENV=local` as browser local development.
 - Local development may use `http://localhost` and `ws://localhost`; non-local environments require `https://` and `wss://`.
-- Do not guess production URLs, downgrade secure URLs, or fall back to localhost outside local mode.
+- Do not guess production URLs, downgrade secure URLs, or fall back to localhost outside explicit local mode.
 - Never log realtime tokens, session cookies, internal service secrets, or signed token values.
 
 ## File Organization

@@ -28,6 +28,7 @@ services:
       - "3000:3000"
     environment:
       APP_ENV: local
+      NEXT_PUBLIC_APP_ENV: local
       DATABASE_URL: postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public
       AUTH_SESSION_COOKIE_NAME: arc_forge_session
       APP_URL: http://localhost:3000
@@ -45,6 +46,7 @@ services:
       [ ! -f .env.local ] || . ./.env.local &&
       set +a &&
       export APP_ENV=local &&
+      export NEXT_PUBLIC_APP_ENV=local &&
       export DATABASE_URL='postgresql://arcforge:arcforge@postgres:5432/arcforge_ai?schema=public' &&
       export APP_URL='http://localhost:3000' &&
       export NEXT_PUBLIC_REALTIME_URL='ws://localhost:3001/ws' &&

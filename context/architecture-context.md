@@ -43,7 +43,7 @@
 - Owner-only project administration remains restricted to the owner.
 - Internal realtime room tokens are short-lived, signed server-side, scoped to one project room, contain only minimal non-PII claims, and are issued only after verifying project membership.
 - Long-lived WebSocket connections run in the standalone realtime service, not in Next.js route handlers.
-- Local development may use HTTP/WS localhost URLs only when `APP_ENV=local`; every non-local environment must use HTTPS/WSS and fail closed on insecure or missing public URLs.
+- Local development may use HTTP/WS localhost URLs only when server-side `APP_ENV=local` and browser-facing `NEXT_PUBLIC_APP_ENV=local`; every non-local environment must use HTTPS/WSS and fail closed on insecure or missing public URLs.
 
 ## Starter System Designs
 
