@@ -77,7 +77,6 @@ export async function createAuthorizedRealtimeToken(
     userId: input.identity.userId,
     projectId: normalizeRoomId(input.projectId),
     roomId: normalizeRoomId(input.roomId),
-    displayName: input.identity.displayName,
   })
 }
 
@@ -88,7 +87,7 @@ export async function verifyRealtimeTokenProjectAccess(
 
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true },
   })
 
   if (!user) return false
@@ -96,7 +95,6 @@ export async function verifyRealtimeTokenProjectAccess(
   const project = await getAccessibleProject(payload.projectId, {
     userId: user.id,
     primaryEmailAddress: user.email,
-    displayName: user.name ?? user.email,
   })
 
   return Boolean(project)

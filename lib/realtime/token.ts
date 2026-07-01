@@ -9,7 +9,6 @@ export interface CreateRealtimeTokenInput {
   userId: string
   projectId: string
   roomId: string
-  displayName: string | null
 }
 
 export interface CreatedRealtimeToken {
@@ -68,8 +67,6 @@ function isRealtimeTokenPayload(
     candidate.sub === candidate.userId &&
     typeof candidate.projectId === "string" &&
     typeof candidate.roomId === "string" &&
-    (candidate.displayName === null ||
-      typeof candidate.displayName === "string") &&
     typeof candidate.iat === "number" &&
     typeof candidate.exp === "number"
   )
@@ -85,7 +82,6 @@ export function createRealtimeRoomToken(
     userId: input.userId,
     projectId: input.projectId,
     roomId: input.roomId,
-    displayName: input.displayName,
     iat: now,
     exp,
   }

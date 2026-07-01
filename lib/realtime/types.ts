@@ -10,7 +10,6 @@ export interface RealtimeTokenPayload {
   userId: string
   projectId: string
   roomId: string
-  displayName: string | null
   iat: number
   exp: number
 }

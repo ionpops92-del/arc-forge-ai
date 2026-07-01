@@ -8,6 +8,7 @@ import { URL } from "node:url"
 import { Prisma } from "@/app/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 import {
+  MAX_REALTIME_PAYLOAD_BYTES,
   parseRealtimeClientMessage,
   serializeRealtimeServerMessage,
 } from "@/lib/realtime/protocol"
@@ -105,7 +106,10 @@ async function persistRealtimeEvent(
 export function createRealtimeServer(options: RealtimeServerOptions = {}) {
   const port = options.port ?? DEFAULT_REALTIME_PORT
   const registry = new RealtimeRoomRegistry()
-  const webSocketServer = new WebSocketServer({ noServer: true })
+  const webSocketServer = new WebSocketServer({
+    noServer: true,
+    maxPayload: MAX_REALTIME_PAYLOAD_BYTES,
+  })
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? "/", "http://localhost")
 

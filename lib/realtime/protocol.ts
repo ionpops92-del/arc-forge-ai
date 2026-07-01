@@ -5,7 +5,7 @@ import type {
   RealtimeServerMessage,
 } from "@/lib/realtime/types"
 
-const MAX_MESSAGE_BYTES = 64 * 1024
+export const MAX_REALTIME_PAYLOAD_BYTES = 64 * 1024
 const MAX_EVENT_TYPE_LENGTH = 120
 
 interface ParseResultSuccess {
@@ -54,7 +54,7 @@ function parseJson(raw: string): unknown {
 export function parseRealtimeClientMessage(
   raw: string
 ): ParseRealtimeMessageResult {
-  if (Buffer.byteLength(raw, "utf8") > MAX_MESSAGE_BYTES) {
+  if (Buffer.byteLength(raw, "utf8") > MAX_REALTIME_PAYLOAD_BYTES) {
     return { ok: false, error: "Message is too large" }
   }
 

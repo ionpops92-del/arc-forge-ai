@@ -42,7 +42,7 @@
 - Only the owner or a collaborator can mutate shared project resources.
 - Owner-only project administration remains restricted to the owner.
 - Liveblocks room tokens are issued only after verifying project membership.
-- Internal realtime room tokens are short-lived, signed server-side, scoped to one project room, and issued only after verifying project membership.
+- Internal realtime room tokens are short-lived, signed server-side, scoped to one project room, contain only minimal non-PII claims, and are issued only after verifying project membership.
 - Long-lived WebSocket connections run in the standalone realtime service, not in Next.js route handlers.
 
 ## Starter System Designs

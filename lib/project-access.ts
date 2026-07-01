@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth/current-user"
 
-export interface ProjectIdentity {
+export interface ProjectAccessIdentity {
   userId: string | null
   primaryEmailAddress: string | null
+}
+
+export interface ProjectIdentity extends ProjectAccessIdentity {
   displayName: string | null
 }
 
@@ -46,7 +49,7 @@ export async function getCurrentProjectIdentity(
 
 export async function getAccessibleProject(
   projectId: string,
-  identity: ProjectIdentity
+  identity: ProjectAccessIdentity
 ) {
   if (!identity.userId) return null
 
@@ -74,7 +77,7 @@ export async function getAccessibleProject(
 
 export async function userHasProjectAccess(
   projectId: string,
-  identity: ProjectIdentity
+  identity: ProjectAccessIdentity
 ) {
   const project = await getAccessibleProject(projectId, identity)
   return Boolean(project)
@@ -82,7 +85,7 @@ export async function userHasProjectAccess(
 
 export async function requireProjectAccess(
   projectId: string,
-  identity: ProjectIdentity
+  identity: ProjectAccessIdentity
 ) {
   if (!identity.userId) {
     throw new ProjectAccessError("Unauthorized", 401)
@@ -99,7 +102,7 @@ export async function requireProjectAccess(
 
 export async function requireProjectOwner(
   projectId: string,
-  identity: ProjectIdentity
+  identity: ProjectAccessIdentity
 ) {
   if (!identity.userId) {
     throw new ProjectAccessError("Unauthorized", 401)

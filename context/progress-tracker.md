@@ -46,7 +46,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## In Progress
 
-- Internal Realtime Foundation — standalone WebSocket service, short-lived authenticated room tokens, typed presence/event protocol, PostgreSQL-backed room event records, Docker realtime service, and a dev/test client hook.
+- Internal Realtime Foundation — standalone WebSocket service, short-lived minimal non-PII authenticated room tokens, typed presence/event protocol, bounded WebSocket payloads, PostgreSQL-backed room event records, Docker realtime service, and a dev/test client hook.
 
 ## Next Up
 - Cut canvas state, presence, and chat from Liveblocks to the internal realtime engine while keeping React Flow as the canvas renderer.
