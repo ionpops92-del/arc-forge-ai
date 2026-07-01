@@ -62,7 +62,7 @@ If you're getting started and need assistance or face any bugs, join our active 
 
 - **[TypeScript](https://www.typescriptlang.org/)** is a strongly typed superset of JavaScript that adds static type definitions to your code. It significantly improves developer productivity and code reliability by catching errors during development, enhancing IDE support, and facilitating maintainability in large-scale projects.
 
-- **Internal Authentication** uses server-verified sessions backed by PostgreSQL. Raw session tokens stay in httpOnly cookies, while only hashed tokens and password hashes are stored in the database.
+- **Internal Authentication** uses server-verified sessions backed by PostgreSQL. Raw session tokens stay in httpOnly cookies, while only hashed tokens, password hashes, verification tokens, and password reset tokens are stored in the database. My Account, email verification, forgot/reset password, and logged-in password changes run on this internal auth foundation.
 
 - **Internal AI Task Runner** is a PostgreSQL-backed worker system for durable AI jobs. API routes enqueue task runs after auth/project checks, and a separate worker leases queued runs, records attempts/events, handles retries, and executes design/spec handlers.
 
@@ -75,6 +75,8 @@ If you're getting started and need assistance or face any bugs, join our active 
 - **[PostgreSQL](https://www.postgresql.org/)** is an advanced, open-source object-relational database system widely recognized for its reliability, extensibility, and standard compliance. It provides the persistent storage layer for your application, supporting complex queries, transactional integrity, and large-scale data handling.
 
 - **Provider-Agnostic Artifact Storage** stores canvas snapshots and generated Markdown specs through a shared storage provider contract. Local development defaults to filesystem storage under `.local-storage`; Vercel Blob can be enabled as an optional external object store.
+
+- **Provider-Agnostic Email Delivery** sends account verification and password reset emails through a small server-side email provider contract. Local development defaults to `EMAIL_PROVIDER=dev_console`; production can use generic SMTP.
 
 - **[Tailwind CSS](https://tailwindcss.com/)** is a utility-first CSS framework that enables rapid custom UI development. By utilizing low-level utility classes directly in your markup, it removes the need to switch between CSS and HTML files, allowing for highly consistent and responsive design systems.
 
@@ -99,6 +101,8 @@ If you're getting started and need assistance or face any bugs, join our active 
 👉 **Downloadable Specs**: Every generated spec is available via a dedicated download API route.
 
 👉 **Internal Authentication**: Server-side session checks protect app routes and API routes; realtime room tokens are only issued after project access is verified.
+
+👉 **My Account & Recovery**: Users can verify their email, request password reset links, reset forgotten passwords, and change passwords while signed in.
 
 👉 **Auto-Save Canvas**: The canvas state is debounced-saved through the configured artifact storage provider.
 
@@ -175,9 +179,28 @@ AI_API_KEY=
 AI_BASE_URL=
 AI_MODEL=
 AI_SPEC_MODEL=
+
+# Local email provider default: no external provider required
+EMAIL_PROVIDER=dev_console
+EMAIL_FROM="Arc Forge AI <no-reply@localhost>"
+
+# Optional: required only when EMAIL_PROVIDER=smtp
+# Resend SMTP example:
+# EMAIL_PROVIDER=smtp
+# EMAIL_FROM="Arc Forge AI <no-reply@your-domain.com>"
+# SMTP_HOST=smtp.resend.com
+# SMTP_PORT=587
+# SMTP_USER=resend
+# SMTP_PASSWORD=<RESEND_API_KEY>
+# SMTP_SECURE=false
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_SECURE=
 ```
 
-Replace the placeholder values with your real credentials where required. Local development uses filesystem artifact storage and mock AI by default, so it does not require `BLOB_READ_WRITE_TOKEN`, `GOOGLE_AI_API_KEY`, or OpenAI-compatible credentials for smoke testing. If you set `STORAGE_PROVIDER=vercel_blob`, add a Vercel Blob token. If you set `AI_PROVIDER=google`, add a key from [**Google AI Studio**](https://aistudio.google.com/). If you set `AI_PROVIDER=openai_compatible`, set `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL`; `AI_SPEC_MODEL` defaults to `AI_MODEL`. Local `http://` and `ws://` URLs are local-only. Browser code uses `NEXT_PUBLIC_APP_ENV=local` to permit localhost WS during local development; staging, preview, and production must use HTTPS and WSS.
+Replace the placeholder values with your real credentials where required. Local development uses filesystem artifact storage, mock AI, and console email delivery by default, so it does not require `BLOB_READ_WRITE_TOKEN`, `GOOGLE_AI_API_KEY`, OpenAI-compatible credentials, SMTP credentials, or Resend for smoke testing. If you set `STORAGE_PROVIDER=vercel_blob`, add a Vercel Blob token. If you set `AI_PROVIDER=google`, add a key from [**Google AI Studio**](https://aistudio.google.com/). If you set `AI_PROVIDER=openai_compatible`, set `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL`; `AI_SPEC_MODEL` defaults to `AI_MODEL`. If you set `EMAIL_PROVIDER=smtp`, set the SMTP variables; Resend SMTP uses `SMTP_HOST=smtp.resend.com`, `SMTP_USER=resend`, and the Resend API key as `SMTP_PASSWORD` after your sending domain is verified. Use `SMTP_SECURE=false` for port 587 STARTTLS and `SMTP_SECURE=true` for port 465 implicit TLS. Local `http://` and `ws://` URLs are local-only. Browser code uses `NEXT_PUBLIC_APP_ENV=local` to permit localhost WS during local development; staging, preview, and production must use HTTPS and WSS.
 
 **Running the Project**
 
@@ -237,10 +260,14 @@ npm run realtime:server
 .
 ├── app/
 │   ├── api/              # Next.js API routes (auth, AI, projects, specs)
+│   ├── account/          # My Account page for verification and password changes
 │   ├── editor/           # Canvas editor pages
+│   ├── forgot-password/  # Password reset request page
 │   ├── generated/prisma/ # Auto-generated Prisma client
+│   ├── reset-password/   # Password reset confirmation page
 │   ├── sign-in/          # Internal sign-in page
-│   └── sign-up/          # Internal sign-up page
+│   ├── sign-up/          # Internal sign-up page
+│   └── verify-email/     # Email verification confirmation page
 ├── components/
 │   ├── editor/           # Canvas UI components (editor, sidebar, AI chat)
 │   └── ui/               # Reusable shadcn/ui primitives
@@ -251,6 +278,7 @@ npm run realtime:server
 │   └── ai/               # AI provider contracts, provider adapters, design/spec helpers
 │   └── realtime/         # Internal realtime token, protocol, and server modules
 │   └── storage/          # Provider-agnostic artifact storage
+│   └── email/            # Provider-agnostic account email delivery
 ├── prisma/               # Prisma schema and migrations
 ├── scripts/
 │   ├── ai-worker.ts      # Internal AI worker entrypoint

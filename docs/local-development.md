@@ -8,6 +8,7 @@ This setup runs the full local development stack in Docker Compose:
 - Internal realtime WebSocket service on `http://localhost:3001` with browser WebSocket URL `ws://localhost:3001/ws`
 - Local filesystem artifact storage under `.local-storage`
 - Deterministic mock AI provider for local design/spec tasks with no external AI key
+- Dev console email delivery for verification and password reset links with no SMTP key
 
 Pressing Play for `docker-compose.local.yml` in Docker Desktop starts all services.
 
@@ -57,6 +58,8 @@ The worker container waits for the app healthcheck, then starts the internal Pos
 The realtime container waits for PostgreSQL and the app healthcheck, then starts the internal WebSocket service. It provides authenticated room tokens, room joins, presence updates, chat/status events, canvas synchronization, and bounded payload handling. React Flow remains the canvas renderer.
 
 The app and worker containers share `./.local-storage:/app/.local-storage`. Local canvas snapshots and generated specs are written through the provider-agnostic storage layer with `STORAGE_PROVIDER=local_fs` and `LOCAL_STORAGE_ROOT=/app/.local-storage`.
+
+The app container uses `EMAIL_PROVIDER=dev_console` in local mode. Verification and password reset emails are printed to the app logs, and local-only API responses may include a dev-only link to make smoke testing account flows easy. SMTP credentials are not required locally.
 
 Local HTTP and WS URLs are development-only. Any staging, preview, or production environment must use HTTPS for the app and WSS for the realtime WebSocket URL; insecure non-local configuration fails closed.
 The browser bundle uses `NEXT_PUBLIC_APP_ENV=local` to allow `ws://localhost:3001/ws` only for local browser sessions. Server-side services use `APP_ENV=local`; internal realtime publish URL fallback to localhost is local-only.
@@ -135,6 +138,7 @@ Use `npm run stack:local:down` when the full stack is running.
 With only the Docker PostgreSQL database and internal auth defaults, you can use:
 
 - internal register/login/logout flows
+- My Account, email verification, forgot password, reset password, and logged-in password change flows
 - `/api/auth/me`
 - local project creation and project navigation
 - owner/collaborator database records
@@ -155,9 +159,27 @@ Full local artifact persistence does not require an external object storage key.
 - `AI_PROVIDER=mock` for deterministic local design/spec generation without external keys.
 - `AI_PROVIDER=google` plus `GOOGLE_AI_API_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY` for Gemini-backed design/spec generation. `GOOGLE_AI_MODEL` and `GOOGLE_AI_SPEC_MODEL` can override the default `gemini-2.5-flash`.
 - `AI_PROVIDER=openai_compatible` plus `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL` for hosted or self-hosted OpenAI-compatible APIs. `AI_SPEC_MODEL` defaults to `AI_MODEL` when omitted.
+- `EMAIL_PROVIDER=dev_console` for local verification/reset emails without external SMTP credentials.
+- `EMAIL_PROVIDER=smtp`, `EMAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_SECURE` for production email delivery.
 
-Without external AI keys, local auth, database-backed project flows, realtime room connectivity, canvas persistence, mock AI design/spec tasks, and provider-backed spec preview/download can be tested. If an external provider is selected without required env, individual queued tasks fail safely without stopping the worker. The internal realtime service can be health-checked at:
+Without external AI keys or SMTP credentials, local auth, account verification/recovery, database-backed project flows, realtime room connectivity, canvas persistence, mock AI design/spec tasks, and provider-backed spec preview/download can be tested. If an external provider is selected without required env, individual queued tasks fail safely without stopping the worker. The internal realtime service can be health-checked at:
 
 ```text
 http://localhost:3001/health
 ```
+
+## Production Email
+
+Production should use `EMAIL_PROVIDER=smtp`. The runtime does not hardcode a vendor, but Resend SMTP is the recommended starting point:
+
+```env
+EMAIL_PROVIDER=smtp
+EMAIL_FROM="Arc Forge AI <no-reply@your-domain.com>"
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=587
+SMTP_USER=resend
+SMTP_PASSWORD=<RESEND_API_KEY>
+SMTP_SECURE=false
+```
+
+Resend requires an API key and a verified sending domain. With port `587`, use STARTTLS by setting `SMTP_SECURE=false`; with port `465`, use implicit TLS by setting `SMTP_SECURE=true`.

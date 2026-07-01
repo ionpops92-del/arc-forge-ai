@@ -5,11 +5,18 @@ export interface SafeUser {
   email: string
   name: string | null
   emailVerifiedAt: Date | null
+  emailVerified: boolean
   createdAt: Date
   updatedAt: Date
 }
 
-interface UserRecord extends SafeUser {
+interface UserRecord {
+  id: string
+  email: string
+  name: string | null
+  emailVerifiedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
   passwordHash?: never
 }
 
@@ -27,6 +34,7 @@ export function toSafeUser(user: UserRecord): SafeUser {
     email: user.email,
     name: user.name,
     emailVerifiedAt: user.emailVerifiedAt,
+    emailVerified: Boolean(user.emailVerifiedAt),
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   }

@@ -12,6 +12,7 @@
 | Realtime         | Internal WebSocket service | Collaboration runtime for room tokens, presence, canvas sync, chat/status events |
 | Background tasks | Internal AI task runner | PostgreSQL-backed durable AI generation workflows              |
 | AI providers     | Provider abstraction    | Mock, Google Gemini, and OpenAI-compatible design/spec generation |
+| Email delivery   | Email provider abstraction | Local console delivery and SMTP account email delivery      |
 | Artifact storage | Storage provider        | Canvas snapshots and generated Markdown specs                  |
 
 ## System Boundaries
@@ -21,6 +22,7 @@
 - `lib/ai/providers` — Server-side AI provider selection and external model adapters.
 - `lib/ai/design` / `lib/ai/spec` — Provider contracts, structured design actions, and spec context helpers.
 - `scripts/ai-worker.ts` — Worker process entrypoint for local and production task execution.
+- `lib/email` — Server-only email provider selection and delivery for account emails.
 - `lib/realtime` — Internal realtime foundation: signed room tokens, typed protocol, room registry, and WebSocket server.
 - `scripts/realtime-server.ts` — Standalone realtime service entrypoint for long-lived WebSocket connections.
 - `lib` — Shared infrastructure: Prisma client, access control helpers, and utilities.
@@ -41,6 +43,8 @@
 
 - Every project has a single owner (`User.id` from the internal auth system).
 - Internal sessions are verified server-side. Raw session tokens live only in httpOnly cookies; only hashed tokens are stored in PostgreSQL.
+- Email verification and password reset tokens are single-use, expire, and are stored only as hashes.
+- Account email delivery is provider-backed. Local development may use `EMAIL_PROVIDER=dev_console`; non-local SMTP delivery requires explicit SMTP configuration.
 - Projects can include additional collaborators by normalized email address.
 - Only authenticated users can access protected routes.
 - Only the owner or a collaborator can mutate shared project resources.
@@ -86,3 +90,4 @@
 8. React Flow remains the permanent canvas renderer.
 9. Non-local browser-facing HTTP and WebSocket transport must use HTTPS/WSS and fail closed when secure transport cannot be verified.
 10. AI provider API keys are server-only and are required only when their provider is explicitly selected.
+11. Email delivery secrets are server-only, and raw verification/reset tokens must never be stored in the database.
