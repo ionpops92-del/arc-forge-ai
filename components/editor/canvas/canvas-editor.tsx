@@ -8,8 +8,6 @@ import {
   ConnectionMode,
   ConnectionLineType,
   MarkerType,
-  useNodes,
-  useEdges,
   applyNodeChanges,
   applyEdgeChanges,
 } from "@xyflow/react"
@@ -53,6 +51,36 @@ function generateEdgeId(): string {
   return `edge-${Date.now()}-${++edgeCounter}`
 }
 
+type NodeSelectionChange = Extract<NodeChange<CanvasNode>, { type: "select" }>
+type EdgeSelectionChange = Extract<EdgeChange<CanvasEdge>, { type: "select" }>
+
+function isNodeSelectionChange(
+  change: NodeChange<CanvasNode>
+): change is NodeSelectionChange {
+  return change.type === "select"
+}
+
+function isEdgeSelectionChange(
+  change: EdgeChange<CanvasEdge>
+): change is EdgeSelectionChange {
+  return change.type === "select"
+}
+
+function applySelectionChanges<T extends { id: string; selected: boolean }>(
+  changes: T[],
+  current: Set<string>
+) {
+  const next = new Set(current)
+  for (const change of changes) {
+    if (change.selected) {
+      next.add(change.id)
+    } else {
+      next.delete(change.id)
+    }
+  }
+  return next
+}
+
 interface CanvasEditorProps {
   projectId: string
   pendingTemplate?: CanvasTemplate | null
@@ -83,6 +111,14 @@ export function CanvasEditor({
   const edgesRef = useRef(edges)
   const historyPastRef = useRef<CanvasSnapshot[]>([])
   const historyFutureRef = useRef<CanvasSnapshot[]>([])
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const selectedNodeIdsRef = useRef(selectedNodeIds)
+  const selectedEdgeIdsRef = useRef(selectedEdgeIds)
   const [historyState, setHistoryState] = useState({
     canUndo: false,
     canRedo: false,
@@ -93,6 +129,31 @@ export function CanvasEditor({
     nodesRef.current = nodes
     edgesRef.current = edges
   }, [nodes, edges])
+
+  useEffect(() => {
+    selectedNodeIdsRef.current = selectedNodeIds
+    selectedEdgeIdsRef.current = selectedEdgeIds
+  }, [selectedEdgeIds, selectedNodeIds])
+
+  const displayedNodes = useMemo(
+    () =>
+      nodes.map((node) => {
+        const selected = selectedNodeIds.has(node.id)
+        if (node.selected === selected && node.dragging === false) return node
+        return { ...node, selected, dragging: false }
+      }),
+    [nodes, selectedNodeIds]
+  )
+
+  const displayedEdges = useMemo(
+    () =>
+      edges.map((edge) => {
+        const selected = selectedEdgeIds.has(edge.id)
+        if (edge.selected === selected) return edge
+        return { ...edge, selected }
+      }),
+    [edges, selectedEdgeIds]
+  )
 
   const publishCanvas = useCallback(
     (nextNodes: CanvasNode[], nextEdges: CanvasEdge[]) => {
@@ -159,19 +220,37 @@ export function CanvasEditor({
     onSaveReady?.(save)
   }, [save, onSaveReady])
 
-  const rfNodes = useNodes<CanvasNode>()
-  const rfEdges = useEdges<CanvasEdge>()
-  const rfNodesRef = useRef(rfNodes)
-  const rfEdgesRef = useRef(rfEdges)
-
-  useEffect(() => {
-    rfNodesRef.current = rfNodes
-    rfEdgesRef.current = rfEdges
-  }, [rfNodes, rfEdges])
-
   const onNodesChange = useCallback(
     (changes: NodeChange<CanvasNode>[]) => {
-      const nextNodes = applyNodeChanges(changes, nodesRef.current)
+      const selectionChanges = changes.filter(isNodeSelectionChange)
+      if (selectionChanges.length > 0) {
+        setSelectedNodeIds((current) => {
+          const next = applySelectionChanges(selectionChanges, current)
+          selectedNodeIdsRef.current = next
+          return next
+        })
+      }
+
+      const durableChanges = changes.filter(
+        (change) => !isNodeSelectionChange(change)
+      )
+      if (durableChanges.length === 0) return
+
+      const removedNodeIds = new Set(
+        durableChanges
+          .filter((change) => change.type === "remove")
+          .map((change) => change.id)
+      )
+      if (removedNodeIds.size > 0) {
+        setSelectedNodeIds((current) => {
+          const next = new Set(current)
+          for (const id of removedNodeIds) next.delete(id)
+          selectedNodeIdsRef.current = next
+          return next
+        })
+      }
+
+      const nextNodes = applyNodeChanges(durableChanges, nodesRef.current)
       commitCanvas(nextNodes, edgesRef.current)
     },
     [commitCanvas]
@@ -179,19 +258,45 @@ export function CanvasEditor({
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange<CanvasEdge>[]) => {
-      const nextEdges = applyEdgeChanges(changes, edgesRef.current)
+      const selectionChanges = changes.filter(isEdgeSelectionChange)
+      if (selectionChanges.length > 0) {
+        setSelectedEdgeIds((current) => {
+          const next = applySelectionChanges(selectionChanges, current)
+          selectedEdgeIdsRef.current = next
+          return next
+        })
+      }
+
+      const durableChanges = changes.filter(
+        (change) => !isEdgeSelectionChange(change)
+      )
+      if (durableChanges.length === 0) return
+
+      const removedEdgeIds = new Set(
+        durableChanges
+          .filter((change) => change.type === "remove")
+          .map((change) => change.id)
+      )
+      if (removedEdgeIds.size > 0) {
+        setSelectedEdgeIds((current) => {
+          const next = new Set(current)
+          for (const id of removedEdgeIds) next.delete(id)
+          selectedEdgeIdsRef.current = next
+          return next
+        })
+      }
+
+      const nextEdges = applyEdgeChanges(durableChanges, edgesRef.current)
       commitCanvas(nodesRef.current, nextEdges)
     },
     [commitCanvas]
   )
 
   const deleteSelection = useCallback(() => {
-    const selectedNodes = rfNodesRef.current.filter((node) => node.selected)
-    const selectedEdges = rfEdgesRef.current.filter((edge) => edge.selected)
-    if (selectedNodes.length === 0 && selectedEdges.length === 0) return
+    const selectedNodeIds = selectedNodeIdsRef.current
+    const selectedEdgeIds = selectedEdgeIdsRef.current
+    if (selectedNodeIds.size === 0 && selectedEdgeIds.size === 0) return
 
-    const selectedNodeIds = new Set(selectedNodes.map((node) => node.id))
-    const selectedEdgeIds = new Set(selectedEdges.map((edge) => edge.id))
     const nextNodes = nodesRef.current.filter((node) => !selectedNodeIds.has(node.id))
     const nextEdges = edgesRef.current.filter(
       (edge) =>
@@ -200,8 +305,23 @@ export function CanvasEditor({
         !selectedNodeIds.has(edge.target)
     )
 
+    const emptyNodeSelection = new Set<string>()
+    const emptyEdgeSelection = new Set<string>()
+    selectedNodeIdsRef.current = emptyNodeSelection
+    selectedEdgeIdsRef.current = emptyEdgeSelection
+    setSelectedNodeIds(emptyNodeSelection)
+    setSelectedEdgeIds(emptyEdgeSelection)
     commitCanvas(nextNodes, nextEdges)
   }, [commitCanvas])
+
+  const clearSelection = useCallback(() => {
+    const emptyNodeSelection = new Set<string>()
+    const emptyEdgeSelection = new Set<string>()
+    selectedNodeIdsRef.current = emptyNodeSelection
+    selectedEdgeIdsRef.current = emptyEdgeSelection
+    setSelectedNodeIds(emptyNodeSelection)
+    setSelectedEdgeIds(emptyEdgeSelection)
+  }, [])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -377,11 +497,12 @@ export function CanvasEditor({
         onMouseLeave={onMouseLeave}
       >
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={displayedNodes}
+          edges={displayedEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onPaneClick={clearSelection}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           connectionMode={ConnectionMode.Loose}
