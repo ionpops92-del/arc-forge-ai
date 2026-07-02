@@ -7,18 +7,20 @@ import type { SaveStatus } from "@/hooks/use-canvas-autosave"
 
 interface CanvasRoomProps {
   projectId: string
+  graphId: string
   pendingTemplate?: CanvasTemplate | null
   onTemplateImported?: () => void
   onSaveStatusChange?: (status: SaveStatus) => void
   onSaveReady?: (saveFn: () => void) => void
 }
 
-export function CanvasRoom({ projectId, pendingTemplate, onTemplateImported, onSaveStatusChange, onSaveReady }: CanvasRoomProps) {
+export function CanvasRoom({ projectId, graphId, pendingTemplate, onTemplateImported, onSaveStatusChange, onSaveReady }: CanvasRoomProps) {
   return (
     <div className="h-full w-full">
-      <ReactFlowProvider>
+      <ReactFlowProvider key={graphId}>
         <CanvasEditor
           projectId={projectId}
+          graphId={graphId}
           pendingTemplate={pendingTemplate}
           onTemplateImported={onTemplateImported}
           onSaveStatusChange={onSaveStatusChange}

@@ -6,9 +6,17 @@ import type {
 import { NODE_COLORS, SHAPE_DEFAULTS } from "@/types/canvas"
 
 export type SemanticTemplateType = "service" | "database" | "worker" | "auth-module"
+export type ServiceInternalTemplateType =
+  | "endpoint"
+  | "entity"
+  | "worker"
+  | "event-contract"
+  | "business-rule"
+  | "validation-rule"
+  | "policy"
 
 export interface SemanticNodeTemplate {
-  semanticType: SemanticTemplateType
+  semanticType: SemanticTemplateType | ServiceInternalTemplateType
   title: string
   shape: NodeShape
   colorIndex: number
@@ -77,6 +85,111 @@ export const SEMANTIC_NODE_TEMPLATES: SemanticNodeTemplate[] = [
   },
 ]
 
+export const SERVICE_INTERNAL_NODE_TEMPLATES: SemanticNodeTemplate[] = [
+  {
+    semanticType: "endpoint",
+    title: "Endpoint",
+    shape: "circle",
+    colorIndex: 1,
+    data: {
+      semanticType: "endpoint",
+      label: "Endpoint",
+      name: "Endpoint",
+      method: "POST",
+      path: "/resource",
+      authRequired: true,
+      idempotent: false,
+      status: "draft",
+    },
+  },
+  {
+    semanticType: "entity",
+    title: "Entity",
+    shape: "rectangle",
+    colorIndex: 7,
+    data: {
+      semanticType: "entity",
+      label: "Entity",
+      name: "Entity",
+      fields: [],
+      tenantKey: "tenantId",
+      status: "draft",
+    },
+  },
+  {
+    semanticType: "worker",
+    title: "Worker",
+    shape: "hexagon",
+    colorIndex: 6,
+    data: {
+      semanticType: "worker",
+      label: "Worker",
+      name: "Worker",
+      triggerType: "event",
+      retryPolicy: "required",
+      idempotencyRequired: true,
+      status: "draft",
+    },
+  },
+  {
+    semanticType: "event-contract",
+    title: "Event",
+    shape: "diamond",
+    colorIndex: 3,
+    data: {
+      semanticType: "event-contract",
+      label: "Event",
+      name: "Event",
+      direction: "published",
+      topic: "domain.event",
+      deliveryGuarantee: "at-least-once",
+      status: "draft",
+    },
+  },
+  {
+    semanticType: "business-rule",
+    title: "Business Rule",
+    shape: "rectangle",
+    colorIndex: 2,
+    data: {
+      semanticType: "business-rule",
+      label: "Business Rule",
+      name: "Business Rule",
+      ruleType: "invariant",
+      status: "draft",
+    },
+  },
+  {
+    semanticType: "validation-rule",
+    title: "Validation",
+    shape: "diamond",
+    colorIndex: 4,
+    data: {
+      semanticType: "validation-rule",
+      label: "Validation",
+      name: "Validation",
+      validationScope: "input",
+      severity: "error",
+      status: "draft",
+    },
+  },
+  {
+    semanticType: "policy",
+    title: "Policy",
+    shape: "pill",
+    colorIndex: 5,
+    data: {
+      semanticType: "policy",
+      label: "Policy",
+      name: "Policy",
+      policyKind: "security",
+      enforcementMode: "server-side",
+      auditRequired: true,
+      status: "draft",
+    },
+  },
+]
+
 export function baseNodeData(label = ""): CanvasNodeData {
   return {
     label,
@@ -133,6 +246,57 @@ export function semanticDefaultsForType(
       authStrategy: "internal-cookie-session",
       sessionMode: "httpOnly-cookie",
       emailVerification: true,
+    }
+  }
+
+  if (semanticType === "endpoint") {
+    return {
+      semanticType,
+      method: "POST",
+      path: "/resource",
+      authRequired: true,
+      idempotent: false,
+    }
+  }
+
+  if (semanticType === "entity") {
+    return {
+      semanticType,
+      fields: [],
+      tenantKey: "tenantId",
+    }
+  }
+
+  if (semanticType === "event-contract") {
+    return {
+      semanticType,
+      direction: "published",
+      topic: "domain.event",
+      deliveryGuarantee: "at-least-once",
+    }
+  }
+
+  if (semanticType === "business-rule") {
+    return {
+      semanticType,
+      ruleType: "invariant",
+    }
+  }
+
+  if (semanticType === "validation-rule") {
+    return {
+      semanticType,
+      validationScope: "input",
+      severity: "error",
+    }
+  }
+
+  if (semanticType === "policy") {
+    return {
+      semanticType,
+      policyKind: "security",
+      enforcementMode: "server-side",
+      auditRequired: true,
     }
   }
 

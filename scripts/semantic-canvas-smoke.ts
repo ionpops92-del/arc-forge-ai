@@ -1,15 +1,24 @@
 import type { CanvasEdge, CanvasNode } from "@/types/canvas"
 import { NODE_COLORS, SHAPE_DEFAULTS } from "@/types/canvas"
 import { createCanvasDocV1 } from "@/lib/canvas/canvas-doc"
-import { compileCanvasToDesignIrV1 } from "@/lib/canvas/design-ir"
+import {
+  compileCanvasDocsToDesignIrV1,
+  compileCanvasToDesignIrV1,
+} from "@/lib/canvas/design-ir"
 import {
   baseNodeData,
   SEMANTIC_NODE_TEMPLATES,
+  SERVICE_INTERNAL_NODE_TEMPLATES,
   semanticTemplateSize,
 } from "@/lib/canvas/semantic-defaults"
 import { createEdgeLabelItems, mirrorEdgeLabelData } from "@/lib/canvas/edge-labels"
 import { sanitizeCanvasSnapshot } from "@/lib/canvas/canvas-state"
 import { validateCanvasSemantics } from "@/lib/canvas/semantic-validation"
+import {
+  ROOT_GRAPH_ID,
+  assertValidGraphId,
+  createServiceGraphIdBase,
+} from "@/lib/canvas/graph-ids"
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -113,6 +122,24 @@ assert(!("draftText" in legacyNode.data), "draftText leaked into node data")
 
 const serviceNode = nodeFromTemplate("service")
 const databaseNode = nodeFromTemplate("database")
+const serviceGraphId = createServiceGraphIdBase(serviceNode)
+assert(serviceGraphId === "graph_service_node", "service graph id was not stable/readable")
+assert(assertValidGraphId(ROOT_GRAPH_ID) === ROOT_GRAPH_ID, "root graph id should validate")
+let rejectedTraversalGraphId = false
+try {
+  assertValidGraphId("../../secret")
+} catch {
+  rejectedTraversalGraphId = true
+}
+assert(rejectedTraversalGraphId, "path traversal graph id was accepted")
+
+serviceNode.data.subcanvasRef = {
+  graphId: serviceGraphId,
+  scopeKind: "service-internal",
+  title: "Payment Service",
+  createdAt: "2026-07-02T00:00:00.000Z",
+  updatedAt: "2026-07-02T00:00:00.000Z",
+}
 const templateWarnings = validateCanvasSemantics({
   nodes: [serviceNode, databaseNode],
   edges: [],
@@ -180,6 +207,110 @@ const irB = compileCanvasToDesignIrV1(doc)
 assert(JSON.stringify(irA) === JSON.stringify(irB), "Design IR compiler is not deterministic")
 assert(irA.services[0]?.id === serviceNode.id, "service node missing from Design IR")
 assert(irA.dataModels[0]?.id === databaseNode.id, "database node missing from Design IR")
+assert(doc.graphId === ROOT_GRAPH_ID, "root CanvasDoc did not default to graph_root")
+assert(doc.scopeKind === "system-root", "root CanvasDoc did not use system-root scope")
+assert(
+  doc.nodes[0]?.data.subcanvasRef?.graphId === serviceGraphId,
+  "subcanvasRef did not survive root CanvasDoc sanitization"
+)
+
+const endpointTemplate = SERVICE_INTERNAL_NODE_TEMPLATES.find(
+  (item) => item.semanticType === "endpoint"
+)
+const entityTemplate = SERVICE_INTERNAL_NODE_TEMPLATES.find(
+  (item) => item.semanticType === "entity"
+)
+assert(endpointTemplate, "missing endpoint internal template")
+assert(entityTemplate, "missing entity internal template")
+
+const endpointNode: CanvasNode = {
+  id: "endpoint-create-payment",
+  type: "canvasNode",
+  position: { x: 20, y: 30 },
+  selected: true,
+  dragging: true,
+  data: {
+    ...baseNodeData(endpointTemplate.title),
+    ...endpointTemplate.data,
+    isEditing: true,
+    draftText: "do not persist",
+  },
+  width: semanticTemplateSize(endpointTemplate).width,
+  height: semanticTemplateSize(endpointTemplate).height,
+}
+const entityNode: CanvasNode = {
+  id: "entity-payment",
+  type: "canvasNode",
+  position: { x: 260, y: 30 },
+  data: {
+    ...baseNodeData(entityTemplate.title),
+    ...entityTemplate.data,
+  },
+  width: semanticTemplateSize(entityTemplate).width,
+  height: semanticTemplateSize(entityTemplate).height,
+}
+const subcanvasLabelItems = createEdgeLabelItems(
+  ["writes", "payment aggregate"],
+  [
+    { id: "sub-primary-label", text: "writes" },
+    { id: "sub-secondary-label", text: "payment aggregate" },
+  ],
+  "sub-db-edge-label"
+)
+const childEdge: CanvasEdge = {
+  id: "endpoint-entity-edge",
+  type: "canvasEdge",
+  source: endpointNode.id,
+  target: entityNode.id,
+  selected: true,
+  data: {
+    semanticType: "db-write",
+    ...mirrorEdgeLabelData(subcanvasLabelItems),
+  },
+}
+const childDoc = createCanvasDocV1(
+  {
+    nodes: [endpointNode, entityNode],
+    edges: [childEdge],
+  },
+  {
+    projectId: "project-smoke",
+    graphId: serviceGraphId,
+    parentNodeId: serviceNode.id,
+    scopeKind: "service-internal",
+    title: "Payment Service",
+  }
+)
+assert(childDoc.graphId === serviceGraphId, "child CanvasDoc graphId was not preserved")
+assert(childDoc.parentNodeId === serviceNode.id, "child CanvasDoc parentNodeId missing")
+assert(childDoc.scopeKind === "service-internal", "child CanvasDoc scopeKind missing")
+assert(!childDoc.nodes.some((node) => node.id === serviceNode.id), "child graph contains root service node")
+assert(!doc.nodes.some((node) => node.id === endpointNode.id), "root graph contains child endpoint")
+assert(!("selected" in childDoc.nodes[0]!), "selected leaked into child graph")
+assert(!("dragging" in childDoc.nodes[0]!), "dragging leaked into child graph")
+assert(!("isEditing" in childDoc.nodes[0]!.data), "isEditing leaked into child graph")
+assert(!("draftText" in childDoc.nodes[0]!.data), "draftText leaked into child graph")
+assert(
+  childDoc.edges[0]?.data?.labelItems?.[1]?.text === "payment aggregate",
+  "subcanvas edge labelItems were not preserved"
+)
+
+const multiIrA = compileCanvasDocsToDesignIrV1([doc, childDoc])
+const multiIrB = compileCanvasDocsToDesignIrV1([childDoc, doc])
+assert(JSON.stringify(multiIrA) === JSON.stringify(multiIrB), "multi-doc IR is not deterministic")
+assert(
+  multiIrA.scope.compiledGraphIds.includes(ROOT_GRAPH_ID) &&
+    multiIrA.scope.compiledGraphIds.includes(serviceGraphId),
+  "multi-doc IR did not include root and child graph ids"
+)
+assert(
+  multiIrA.apis.some((node) => node.id === endpointNode.id),
+  "endpoint node missing from multi-doc IR"
+)
+assert(
+  multiIrA.dataModels.some((node) => node.id === entityNode.id),
+  "entity node missing from multi-doc IR"
+)
 
 const secretCanvas = sanitizeCanvasSnapshot({
   nodes: [

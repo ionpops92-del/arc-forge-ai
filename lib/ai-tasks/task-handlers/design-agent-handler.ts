@@ -1,7 +1,8 @@
 import { z } from "zod"
 import { applyDesignActions } from "@/lib/ai/design/design-actions"
 import { getAiProvider } from "@/lib/ai/providers/provider-factory"
-import { readCanvasSnapshot, writeCanvasSnapshot } from "@/lib/canvas/canvas-persistence"
+import { readCanvasDoc, writeCanvasDoc } from "@/lib/canvas/canvas-persistence"
+import { graphIdFromSearchParam, parseRealtimeRoomId } from "@/lib/canvas/graph-ids"
 import { publishRealtimeRoomEvent } from "@/lib/realtime/server-publish"
 import { AI_ASSISTANT_NAME } from "@/lib/branding"
 import type { JsonValue } from "@/lib/realtime/types"
@@ -12,6 +13,8 @@ const AI_USER_ID = "arc-forge-ai"
 export const DesignAgentPayloadSchema = z.object({
   prompt: z.string().trim().min(1),
   roomId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).optional(),
+  graphId: z.string().trim().min(1).optional(),
   userId: z.string().trim().min(1),
 })
 
@@ -46,7 +49,13 @@ async function publishCanvas(projectId: string, roomId: string, nodes: CanvasNod
 }
 
 export async function runDesignAgentTask(payload: DesignAgentPayload) {
-  const projectId = payload.roomId
+  const parsedRoom = parseRealtimeRoomId(payload.roomId)
+  const projectId = payload.projectId ?? parsedRoom.projectId
+  const graphId = graphIdFromSearchParam(payload.graphId ?? null)
+
+  if (parsedRoom.projectId !== projectId || parsedRoom.graphId !== graphId) {
+    throw new Error("Design agent room scope does not match project graph")
+  }
 
   await publishStatus(
     projectId,
@@ -56,7 +65,10 @@ export async function runDesignAgentTask(payload: DesignAgentPayload) {
   )
 
   try {
-    const currentCanvas = (await readCanvasSnapshot(projectId)) ?? { nodes: [], edges: [] }
+    const currentDoc = await readCanvasDoc(projectId, graphId)
+    const currentCanvas = currentDoc
+      ? { nodes: currentDoc.nodes, edges: currentDoc.edges }
+      : { nodes: [], edges: [] }
     const result = await getAiProvider().generateDesignActions({
       prompt: payload.prompt,
       projectId,
@@ -74,7 +86,12 @@ export async function runDesignAgentTask(payload: DesignAgentPayload) {
 
     const nextCanvas = applyDesignActions(result.actions, currentCanvas)
 
-    await writeCanvasSnapshot(projectId, nextCanvas)
+    await writeCanvasDoc(projectId, nextCanvas, {
+      graphId,
+      parentNodeId: currentDoc?.parentNodeId ?? null,
+      scopeKind: currentDoc?.scopeKind,
+      title: currentDoc?.title,
+    })
     await publishCanvas(projectId, payload.roomId, nextCanvas.nodes, nextCanvas.edges)
     await publishStatus(projectId, payload.roomId, result.summary, "complete")
 

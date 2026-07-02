@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { AlertTriangle, Info, SquareArrowOutUpRight } from "lucide-react"
 import type {
   CanvasEdge,
@@ -26,8 +27,11 @@ import {
   normalizeEdgeLabelItems,
 } from "@/lib/canvas/edge-labels"
 import { useCanvasMutations } from "@/components/editor/canvas/canvas-mutation-context"
+import { ROOT_GRAPH_ID } from "@/lib/canvas/graph-ids"
 
 interface SemanticInspectorProps {
+  projectId: string
+  currentGraphId: string
   selectedNode: CanvasNode | null
   selectedEdge: CanvasEdge | null
   warnings: SemanticValidationResult[]
@@ -203,7 +207,19 @@ function WarningList({ warnings }: { warnings: SemanticValidationResult[] }) {
   )
 }
 
-function SubcanvasNotice({ node }: { node: CanvasNode }) {
+function SubcanvasNotice({
+  node,
+  projectId,
+  currentGraphId,
+  patch,
+}: {
+  node: CanvasNode
+  projectId: string
+  currentGraphId: string
+  patch: (patch: Partial<CanvasNodeData>) => void
+}) {
+  const router = useRouter()
+  const [isCreating, setIsCreating] = useState(false)
   const semanticType = node.data.semanticType
   if (
     !semanticType ||
@@ -212,19 +228,78 @@ function SubcanvasNotice({ node }: { node: CanvasNode }) {
     return null
   }
 
+  const subcanvasRef = node.data.subcanvasRef
+  const canCreateServiceDesign =
+    currentGraphId === ROOT_GRAPH_ID && semanticType === "service"
+
+  async function createServiceDesign() {
+    if (subcanvasRef?.graphId) {
+      router.push(`/editor/${projectId}?graphId=${encodeURIComponent(subcanvasRef.graphId)}`)
+      return
+    }
+
+    setIsCreating(true)
+    try {
+      const response = await fetch(`/api/projects/${projectId}/subcanvas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parentGraphId: ROOT_GRAPH_ID,
+          parentNodeId: node.id,
+        }),
+      })
+
+      if (!response.ok) return
+      const data = (await response.json()) as {
+        subcanvasRef?: NonNullable<CanvasNodeData["subcanvasRef"]>
+      }
+      if (!data.subcanvasRef?.graphId) return
+      patch({ subcanvasRef: data.subcanvasRef })
+      router.push(`/editor/${projectId}?graphId=${encodeURIComponent(data.subcanvasRef.graphId)}`)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   return (
     <div className="grid gap-2 rounded-xl border border-border-default bg-bg-elevated px-2.5 py-2 text-xs text-text-secondary">
       <span>
-        {node.data.subcanvasRef ? "Service design metadata is linked." : "Subcanvas not created yet."}
+        {subcanvasRef?.graphId
+          ? "Service design metadata is linked."
+          : canCreateServiceDesign
+            ? "Subcanvas not created yet."
+            : "Drill-down for this node type is coming next."}
       </span>
-      <button
-        type="button"
-        disabled
-        className="flex h-8 items-center justify-center gap-2 rounded-xl border border-border-default text-text-faint"
-      >
-        <SquareArrowOutUpRight className="h-3.5 w-3.5" />
-        Open design - coming next
-      </button>
+      {subcanvasRef?.graphId ? (
+        <p className="truncate font-mono text-[10px] text-text-faint">
+          {subcanvasRef.graphId}
+        </p>
+      ) : null}
+      {canCreateServiceDesign || subcanvasRef?.graphId ? (
+        <button
+          type="button"
+          onClick={createServiceDesign}
+          disabled={isCreating}
+          aria-label={subcanvasRef?.graphId ? "Open service design" : "Create service design"}
+          className="flex h-8 items-center justify-center gap-2 rounded-xl border border-accent-primary/30 bg-accent-primary/10 text-text-primary transition-colors hover:border-accent-primary/60 hover:bg-accent-primary/15 disabled:cursor-wait disabled:opacity-60"
+        >
+          <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+          {isCreating
+            ? "Creating…"
+            : subcanvasRef?.graphId
+              ? "Open service design"
+              : "Create service design"}
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled
+          className="flex h-8 items-center justify-center gap-2 rounded-xl border border-border-default text-text-faint"
+        >
+          <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+          Open design - coming next
+        </button>
+      )}
     </div>
   )
 }
@@ -292,10 +367,56 @@ function NodeSpecificFields({
     )
   }
 
+  if (type === "entity") {
+    return (
+      <>
+        <ListField label="Fields" values={toList(node.data.fields)} onCommit={(fields) => patch({ fields })} />
+        <DraftField label="Tenant key" value={node.data.tenantKey ?? ""} onCommit={(tenantKey) => patch({ tenantKey })} />
+      </>
+    )
+  }
+
+  if (type === "event-contract") {
+    return (
+      <>
+        <DraftField label="Direction" value={node.data.direction ?? ""} onCommit={(direction) => patch({ direction })} />
+        <DraftField label="Topic" value={node.data.topic ?? ""} onCommit={(topic) => patch({ topic })} />
+        <DraftField label="Delivery guarantee" value={node.data.deliveryGuarantee ?? ""} onCommit={(deliveryGuarantee) => patch({ deliveryGuarantee })} />
+      </>
+    )
+  }
+
+  if (type === "business-rule") {
+    return (
+      <DraftField label="Rule type" value={node.data.ruleType ?? ""} onCommit={(ruleType) => patch({ ruleType })} />
+    )
+  }
+
+  if (type === "validation-rule") {
+    return (
+      <>
+        <DraftField label="Validation scope" value={node.data.validationScope ?? ""} onCommit={(validationScope) => patch({ validationScope })} />
+        <DraftField label="Severity" value={node.data.severity ?? ""} onCommit={(severity) => patch({ severity })} />
+      </>
+    )
+  }
+
+  if (type === "policy") {
+    return (
+      <>
+        <DraftField label="Policy kind" value={node.data.policyKind ?? ""} onCommit={(policyKind) => patch({ policyKind })} />
+        <DraftField label="Enforcement mode" value={node.data.enforcementMode ?? ""} onCommit={(enforcementMode) => patch({ enforcementMode })} />
+        <BooleanField label="Audit required" checked={Boolean(node.data.auditRequired)} onChange={(auditRequired) => patch({ auditRequired })} />
+      </>
+    )
+  }
+
   return null
 }
 
 export function SemanticInspector({
+  projectId,
+  currentGraphId,
   selectedNode,
   selectedEdge,
   warnings,
@@ -312,7 +433,7 @@ export function SemanticInspector({
     if (warnings.length === 0) return null
 
     return (
-      <aside className="pointer-events-auto absolute left-4 top-4 z-20 w-80 rounded-2xl border border-border-default bg-bg-surface/95 p-3 shadow-xl backdrop-blur-xl">
+      <aside className="pointer-events-auto absolute left-4 top-16 z-20 w-80 rounded-2xl border border-border-default bg-bg-surface/95 p-3 shadow-xl backdrop-blur-xl">
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-xs font-semibold text-text-primary">Semantic warnings</p>
           <span className="rounded-full bg-bg-elevated px-2 py-0.5 text-[10px] text-text-muted">
@@ -330,7 +451,7 @@ export function SemanticInspector({
       updateNodeData(selectedNode.id, nextPatch)
 
     return (
-      <aside className="pointer-events-auto absolute left-4 top-4 z-20 max-h-[calc(100%-2rem)] w-80 overflow-y-auto rounded-2xl border border-border-default bg-bg-surface/95 p-3 shadow-xl backdrop-blur-xl">
+      <aside className="pointer-events-auto absolute left-4 top-16 z-20 max-h-[calc(100%-5rem)] w-80 overflow-y-auto rounded-2xl border border-border-default bg-bg-surface/95 p-3 shadow-xl backdrop-blur-xl">
         <div className="mb-3">
           <p className="text-xs font-semibold text-text-primary">Semantic Inspector</p>
           <p className="truncate text-[11px] text-text-muted">{selectedNode.id}</p>
@@ -365,7 +486,12 @@ export function SemanticInspector({
           <ListField label="Assumptions" values={toList(selectedNode.data.assumptions)} onCommit={(assumptions) => patch({ assumptions })} />
           <ListField label="Decision refs" values={toList(selectedNode.data.decisionRefs)} onCommit={(decisionRefs) => patch({ decisionRefs })} />
           <NodeSpecificFields node={selectedNode} patch={patch} />
-          <SubcanvasNotice node={selectedNode} />
+          <SubcanvasNotice
+            node={selectedNode}
+            projectId={projectId}
+            currentGraphId={currentGraphId}
+            patch={patch}
+          />
         </div>
       </aside>
     )
@@ -379,7 +505,7 @@ export function SemanticInspector({
     const edgeLabels = edgeLabelTexts(edgeData)
 
     return (
-      <aside className="pointer-events-auto absolute left-4 top-4 z-20 max-h-[calc(100%-2rem)] w-80 overflow-y-auto rounded-2xl border border-border-default bg-bg-surface/95 p-3 shadow-xl backdrop-blur-xl">
+      <aside className="pointer-events-auto absolute left-4 top-16 z-20 max-h-[calc(100%-5rem)] w-80 overflow-y-auto rounded-2xl border border-border-default bg-bg-surface/95 p-3 shadow-xl backdrop-blur-xl">
         <div className="mb-3">
           <p className="text-xs font-semibold text-text-primary">Semantic Inspector</p>
           <p className="truncate text-[11px] text-text-muted">{selectedEdge.id}</p>

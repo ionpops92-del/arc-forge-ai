@@ -250,3 +250,86 @@ export function compileCanvasToDesignIrV1(
     relations: edges.map(toIrRelation),
   }
 }
+
+export function compileCanvasDocsToDesignIrV1(
+  docs: CanvasDocV1[],
+  options: { projectId?: string; projectName?: string } = {}
+): DesignIrV1 {
+  const normalizedDocs = docs
+    .map((doc) => normalizeCanvasDocV1(doc, { projectId: options.projectId }))
+    .sort((a, b) => a.graphId.localeCompare(b.graphId))
+  const rootDoc =
+    normalizedDocs.find((doc) => doc.scopeKind === "system-root") ?? normalizedDocs[0]
+
+  if (!rootDoc) {
+    return compileCanvasToDesignIrV1({ nodes: [], edges: [] }, options)
+  }
+
+  const nodes = normalizedDocs
+    .flatMap((doc) =>
+      doc.nodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          graphId: doc.graphId,
+          graphScopeKind: doc.scopeKind,
+        },
+      }))
+    )
+    .sort((a, b) => `${a.data.graphId}:${a.id}`.localeCompare(`${b.data.graphId}:${b.id}`))
+  const edges = normalizedDocs
+    .flatMap((doc) =>
+      doc.edges.map((edge) => ({
+        ...edge,
+        data: {
+          ...(edge.data ?? {}),
+          graphId: doc.graphId,
+          graphScopeKind: doc.scopeKind,
+        },
+      }))
+    )
+    .sort((a, b) => `${a.data.graphId}:${a.id}`.localeCompare(`${b.data.graphId}:${b.id}`))
+  const irNodes = nodes.map(toIrNode)
+  const compiledGraphIds = normalizedDocs.map((doc) => doc.graphId)
+
+  return {
+    $schema: DESIGN_IR_SCHEMA_URL,
+    irVersion: DESIGN_IR_VERSION,
+    project: {
+      id: rootDoc.projectId,
+      name: options.projectName ?? rootDoc.title,
+      tenantModel: "owner-scoped-now-workspace-compatible-later",
+      defaultRuntime: "node-typescript",
+      defaultDatabase: "postgresql",
+      defaultOrm: "prisma",
+    },
+    scope: {
+      rootGraphId: rootDoc.graphId,
+      compiledGraphIds,
+    },
+    decisions: collectDecisions(nodes, edges),
+    services: sortNodes(irNodes.filter((node) => node.semanticType === "service")),
+    apis: sortNodes(
+      irNodes.filter((node) =>
+        ["api", "endpoint-group", "endpoint"].includes(node.semanticType)
+      )
+    ),
+    dataModels: sortNodes(
+      irNodes.filter((node) =>
+        ["database", "domain-model", "entity", "cache", "queue", "event-contract"].includes(
+          node.semanticType
+        )
+      )
+    ),
+    policies: sortNodes(
+      irNodes.filter((node) =>
+        ["policy", "business-rule", "validation-rule", "auth-module"].includes(
+          node.semanticType
+        )
+      )
+    ),
+    assumptions: collectStrings(nodes, edges, "assumptions"),
+    sourceRefs: collectStrings(nodes, edges, "sourceRefs"),
+    relations: edges.map(toIrRelation),
+  }
+}

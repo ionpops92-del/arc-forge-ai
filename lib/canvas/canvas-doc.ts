@@ -1,5 +1,9 @@
 import type { CanvasEdge, CanvasNode } from "@/types/canvas"
-import { CANVAS_DOC_VERSION } from "@/types/canvas"
+import {
+  CANVAS_DOC_VERSION,
+  type CanvasSubcanvasScopeKind,
+} from "@/types/canvas"
+import { ROOT_GRAPH_ID } from "@/lib/canvas/graph-ids"
 import {
   type CanvasSnapshot,
   sanitizeCanvasSnapshot,
@@ -8,7 +12,7 @@ import {
 export const CANVAS_DOC_SCHEMA_URL =
   "https://arcforge.dev/schemas/canvas-doc.v1.json" as const
 
-export type CanvasScopeKind = "system-root" | "subcanvas"
+export type CanvasScopeKind = "system-root" | CanvasSubcanvasScopeKind
 
 export interface CanvasViewport {
   x: number
@@ -51,6 +55,23 @@ function normalizeViewport(value: unknown): CanvasViewport {
   }
 }
 
+function normalizeScopeKind(value: unknown): CanvasScopeKind {
+  if (
+    value === "system-root" ||
+    value === "service-internal" ||
+    value === "api-design" ||
+    value === "database-design" ||
+    value === "auth-design" ||
+    value === "worker-design"
+  ) {
+    return value
+  }
+
+  if (value === "subcanvas") return "service-internal"
+
+  return "system-root"
+}
+
 export function createCanvasDocV1(
   snapshot: CanvasSnapshot,
   options: {
@@ -69,7 +90,7 @@ export function createCanvasDocV1(
     $schema: CANVAS_DOC_SCHEMA_URL,
     docVersion: CANVAS_DOC_VERSION,
     projectId: options.projectId,
-    graphId: options.graphId ?? "graph_root",
+    graphId: options.graphId ?? ROOT_GRAPH_ID,
     parentNodeId: options.parentNodeId ?? null,
     scopeKind: options.scopeKind ?? "system-root",
     title: options.title ?? "System",
@@ -82,21 +103,23 @@ export function createCanvasDocV1(
 
 export function normalizeCanvasDocV1(
   value: unknown,
-  options: { projectId?: string } = {}
+  options: {
+    projectId?: string
+    graphId?: string
+    scopeKind?: CanvasScopeKind
+    title?: string
+  } = {}
 ): CanvasDocV1 {
   const record = isRecord(value) ? value : {}
   const snapshot = sanitizeCanvasSnapshot(value)
-  const scopeKind =
-    record.scopeKind === "subcanvas" || record.scopeKind === "system-root"
-      ? record.scopeKind
-      : "system-root"
+  const scopeKind = normalizeScopeKind(record.scopeKind ?? options.scopeKind)
 
   return createCanvasDocV1(snapshot, {
     projectId: normalizeString(record.projectId, options.projectId ?? ""),
-    graphId: normalizeString(record.graphId, "graph_root"),
+    graphId: normalizeString(record.graphId, options.graphId ?? ROOT_GRAPH_ID),
     parentNodeId: typeof record.parentNodeId === "string" ? record.parentNodeId : null,
     scopeKind,
-    title: normalizeString(record.title, "System"),
+    title: normalizeString(record.title, options.title ?? "System"),
     viewport: normalizeViewport(record.viewport),
     panels: isRecord(record.panels) ? record.panels : {},
   })

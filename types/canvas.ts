@@ -66,9 +66,19 @@ export interface CanvasEdgeLabelItem {
   text: string
 }
 
+export type CanvasSubcanvasScopeKind =
+  | "service-internal"
+  | "api-design"
+  | "database-design"
+  | "auth-design"
+  | "worker-design"
+
 export interface CanvasSubcanvasRef {
   graphId: string
+  scopeKind?: CanvasSubcanvasScopeKind
   title?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface SemanticDefinition<TType extends string> {
@@ -393,6 +403,17 @@ export interface CanvasNodeData extends Record<string, unknown> {
   path?: string
   authRequired?: boolean
   idempotent?: boolean
+  fields?: string[]
+  tenantKey?: string
+  direction?: string
+  topic?: string
+  deliveryGuarantee?: string
+  ruleType?: string
+  validationScope?: string
+  severity?: string
+  policyKind?: string
+  enforcementMode?: string
+  auditRequired?: boolean
 }
 
 export interface CanvasEdgeData extends Record<string, unknown> {

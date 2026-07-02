@@ -104,7 +104,8 @@ React Flow `<Background>` component. Canvas sits on the base background color.
 - Selected nodes and edges expose a local property inspector for semantic type, common metadata, and S1 type-specific fields.
 - Edge semantic type is edited from the inspector and may show a compact badge only during active edge interaction.
 - Semantic warnings are advisory and do not block saving.
-- Subcanvas-capable nodes can show subcanvasRef readiness metadata, but drill-down navigation is not active yet.
+- Service nodes can create and open a service-internal drill-down canvas through `subcanvasRef`; the editor URL carries the active `graphId`, the breadcrumb returns to the system root, and empty service graphs show a compact internal-design guide. Other subcanvas-capable semantic node types keep placeholder readiness affordances until their drill-down scopes are implemented.
+- Service-internal canvases expose compact semantic templates for endpoints, entities, workers, event contracts, business rules, validation rules, and policies while preserving the same React Flow interaction model.
 
 ## Component Library
 
@@ -114,6 +115,7 @@ shadcn/ui on top of Tailwind. No custom design system. Components live in `compo
 
 - Editor workspace: full-viewport layout with a responsive cockpit shell. On large viewports, open left and right sidebars reserve canvas gutters so canvas tools and semantic inspectors do not sit underneath them.
 - Sidebars: floating glass panels with dark semi-transparent background and subtle border. On smaller viewports, the project sidebar behaves like a modal navigation deck with a strong backdrop instead of competing with canvas inspectors.
+- Canvas graph breadcrumb: a small glass overlay sits below the navbar; it identifies the current graph and lets users jump from a service drill-down back to the system root without overlapping the sidebars or inspector.
 - Workspace navbar actions compress to icon-only controls on small viewports, while desktop keeps text labels for faster scanning.
 - Compact account menu: on small workspaces, the avatar remains the only navbar account trigger and opens a compact cockpit-style popover with Account and Sign out actions layered above the mobile project deck.
 - Modals and dialogs: centered overlay, `rounded-3xl`, dark background with backdrop blur.

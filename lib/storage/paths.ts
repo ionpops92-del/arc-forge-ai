@@ -16,6 +16,12 @@ export function canvasSnapshotObjectPath(projectId: string) {
   return `canvas/${safeProjectId}.json`
 }
 
+export function canvasGraphObjectPath(projectId: string, graphId: string) {
+  const safeProjectId = assertSafePathSegment(projectId, "projectId")
+  const safeGraphId = assertSafePathSegment(graphId, "graphId")
+  return `canvas/${safeProjectId}/graphs/${safeGraphId}.json`
+}
+
 export function specMarkdownObjectPath(projectId: string, specId: string) {
   const safeProjectId = assertSafePathSegment(projectId, "projectId")
   const safeSpecId = assertSafePathSegment(specId, "specId")

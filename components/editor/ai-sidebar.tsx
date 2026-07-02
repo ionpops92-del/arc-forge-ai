@@ -67,7 +67,9 @@ interface AiSidebarProps {
   isOpen: boolean
   onClose: () => void
   roomId: string
+  realtimeRoomId: string
   projectId: string
+  graphId: string
 }
 
 const STARTER_CHIPS = [
@@ -80,7 +82,14 @@ function formatTime(createdAt: number): string {
   return new Date(createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 }
 
-export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps) {
+export function AiSidebar({
+  isOpen,
+  onClose,
+  roomId,
+  realtimeRoomId,
+  projectId,
+  graphId,
+}: AiSidebarProps) {
   const {
     nodes,
     edges,
@@ -257,7 +266,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
       const designRes = await fetch("/api/ai/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text, roomId, projectId }),
+        body: JSON.stringify({ prompt: text, roomId: realtimeRoomId, projectId, graphId }),
       })
 
       if (!designRes.ok) throw new Error("Design request failed")
@@ -282,7 +291,16 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
       setStatusText("")
       patchPresence({ thinking: false })
     }
-  }, [broadcastRoomEvent, input, isLoading, patchPresence, projectId, roomId, sendChatMessage])
+  }, [
+    broadcastRoomEvent,
+    graphId,
+    input,
+    isLoading,
+    patchPresence,
+    projectId,
+    realtimeRoomId,
+    sendChatMessage,
+  ])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

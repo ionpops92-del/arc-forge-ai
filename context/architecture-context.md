@@ -34,10 +34,10 @@
 ## Storage Model
 
 - **Database**: metadata, ownership, relationships, AI task runs/events/attempts, realtime room events, and project spec records.
-- **Storage provider**: generated artifacts — canvas snapshots at `canvas/{projectId}.json` and specs at `specs/{projectId}/{specId}.md`.
+- **Storage provider**: generated artifacts — the root canvas graph remains at `canvas/{projectId}.json`, service/internal graph documents are stored separately at `canvas/{projectId}/graphs/{graphId}.json`, and specs are stored at `specs/{projectId}/{specId}.md`.
 - Project records, spec records, AI task run records, and internal realtime room events belong in PostgreSQL.
 - Canvas content and Markdown output are stored in and retrieved from the configured artifact storage provider.
-- Existing canvas storage remains compatible with `{ nodes, edges }` snapshots. CanvasDoc v1 is defined as a compatibility document shape for semantic architecture data, but full CanvasDoc persistence is not required by the current storage layer.
+- Existing canvas storage remains compatible with `{ nodes, edges }` snapshots. New graph-aware canvas writes persist CanvasDoc v1 documents; legacy root reads normalize existing snapshots into `graph_root`, while subcanvas graphs are separate CanvasDoc v1 objects referenced by `node.data.subcanvasRef`.
 - Local development defaults to filesystem storage under `.local-storage`; external object storage such as Vercel Blob is optional.
 - The database stores only the provider object reference in the existing `canvasBlobUrl` and `filePath` fields.
 
@@ -51,7 +51,7 @@
 - Only authenticated users can access protected routes.
 - Only the owner or a collaborator can mutate shared project resources.
 - Owner-only project administration remains restricted to the owner.
-- Internal realtime room tokens are short-lived, signed server-side, scoped to one project room, contain only minimal non-PII claims, and are issued only after verifying project membership.
+- Internal realtime room tokens are short-lived, signed server-side, scoped to one project graph room, contain only minimal non-PII claims, and are issued only after verifying project membership. Graph-scoped room IDs use the project id plus graph id so root and service drill-down canvas updates do not collide.
 - Long-lived WebSocket connections run in the standalone realtime service, not in Next.js route handlers.
 - Local development may use HTTP/WS localhost URLs only when server-side `APP_ENV=local` and browser-facing `NEXT_PUBLIC_APP_ENV=local`; every non-local environment must use HTTPS/WSS and fail closed on insecure or missing public URLs.
 
@@ -71,7 +71,7 @@
 - Input: user prompt, project context, and current canvas state.
 - Execution: durable background task via the internal PostgreSQL-backed AI task runner.
 - Provider: selected with `AI_PROVIDER=mock | google | openai_compatible`; local defaults to `mock` and requires no external key.
-- Output: structured node and edge updates written to provider-backed canvas state and published into the internal realtime room.
+- Output: structured node and edge updates written to the active provider-backed canvas graph and published into the matching internal realtime room.
 - Design provider output is validated against the allowed action schema before it can mutate canvas state.
 
 ### Spec Generation
