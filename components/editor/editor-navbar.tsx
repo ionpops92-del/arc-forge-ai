@@ -29,7 +29,7 @@ export function EditorNavbar({
   onSave,
 }: EditorNavbarProps) {
   return (
-    <header className="relative z-50 flex h-12 shrink-0 items-center justify-between border-b border-border-default bg-bg-surface px-3">
+    <header className="relative z-[60] flex h-12 shrink-0 items-center justify-between border-b border-border-default bg-bg-surface px-3">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <Button variant="ghost" size="icon" onClick={onToggle}>
           {isOpen ? (
