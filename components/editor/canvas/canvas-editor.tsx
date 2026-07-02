@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   ReactFlow,
   Background,
@@ -33,6 +34,7 @@ import { useCurrentUser } from "@/hooks/use-current-user"
 import type { CanvasSnapshot } from "@/lib/canvas/canvas-state"
 import { validateCanvasSemantics } from "@/lib/canvas/semantic-validation"
 import { baseNodeData } from "@/lib/canvas/semantic-defaults"
+import { ROOT_GRAPH_ID } from "@/lib/canvas/graph-ids"
 
 const nodeTypes = { canvasNode: CanvasNodeComponent }
 const edgeTypes = { canvasEdge: CanvasEdgeComponent }
@@ -181,6 +183,7 @@ function localPointerPoint(
 
 interface CanvasEditorProps {
   projectId: string
+  graphId: string
   pendingTemplate?: CanvasTemplate | null
   onTemplateImported?: () => void
   onSaveStatusChange?: (status: SaveStatus) => void
@@ -189,6 +192,7 @@ interface CanvasEditorProps {
 
 export function CanvasEditor({
   projectId,
+  graphId,
   pendingTemplate,
   onTemplateImported,
   onSaveStatusChange,
@@ -200,7 +204,11 @@ export function CanvasEditor({
     setCanvasSnapshot,
     patchPresence,
     status: realtimeStatus,
+    graphTitle,
+    graphScopeKind,
+    parentNodeId,
   } = useRealtimeRoom()
+  const router = useRouter()
   const { user } = useCurrentUser()
   const reactFlow = useReactFlow()
   const { screenToFlowPosition, zoomIn, zoomOut, fitView } = reactFlow
@@ -329,7 +337,11 @@ export function CanvasEditor({
     return () => window.clearTimeout(timeoutId)
   }, [commitCanvas, fitView, onTemplateImported, pendingTemplate])
 
-  const { status: saveStatus, save } = useCanvasAutosave(projectId, nodes, edges)
+  const { status: saveStatus, save } = useCanvasAutosave(projectId, graphId, nodes, edges, {
+    title: graphTitle,
+    scopeKind: graphScopeKind,
+    parentNodeId,
+  })
 
   useEffect(() => {
     onSaveStatusChange?.(saveStatus)
@@ -904,8 +916,21 @@ export function CanvasEditor({
           canUndo={canUndo}
           canRedo={canRedo}
         />
-        <ShapePanel />
+        <GraphBreadcrumb
+          projectId={projectId}
+          graphId={graphId}
+          graphTitle={graphTitle}
+          onNavigateRoot={() => router.push(`/editor/${projectId}`)}
+        />
+        <EmptySubcanvasGuide
+          graphScopeKind={graphScopeKind}
+          graphTitle={graphTitle}
+          isEmpty={nodes.length === 0 && edges.length === 0}
+        />
+        <ShapePanel graphScopeKind={graphScopeKind} />
         <SemanticInspector
+          projectId={projectId}
+          currentGraphId={graphId}
           selectedNode={selectedNode}
           selectedEdge={selectedEdge}
           warnings={semanticWarnings}
@@ -916,6 +941,64 @@ export function CanvasEditor({
         <SaveStatusIndicator status={saveStatus} />
       </div>
     </CanvasMutationProvider>
+  )
+}
+
+function GraphBreadcrumb({
+  projectId,
+  graphId,
+  graphTitle,
+  onNavigateRoot,
+}: {
+  projectId: string
+  graphId: string
+  graphTitle: string
+  onNavigateRoot: () => void
+}) {
+  const isRoot = graphId === ROOT_GRAPH_ID
+
+  return (
+    <div className="pointer-events-auto absolute left-4 top-4 z-30 flex max-w-[min(28rem,calc(100%-2rem))] items-center gap-2 rounded-2xl border border-border-default bg-bg-surface/95 px-3 py-2 text-xs shadow-xl backdrop-blur-xl">
+      <button
+        type="button"
+        onClick={onNavigateRoot}
+        disabled={isRoot}
+        className="font-medium text-text-primary transition-colors enabled:hover:text-accent-primary disabled:cursor-default"
+      >
+        System
+      </button>
+      {!isRoot ? (
+        <>
+          <span className="text-text-faint">/</span>
+          <span className="truncate text-text-secondary">{graphTitle}</span>
+        </>
+      ) : null}
+      <span className="sr-only">{projectId}</span>
+    </div>
+  )
+}
+
+function EmptySubcanvasGuide({
+  graphScopeKind,
+  graphTitle,
+  isEmpty,
+}: {
+  graphScopeKind: string
+  graphTitle: string
+  isEmpty: boolean
+}) {
+  if (!isEmpty || graphScopeKind !== "service-internal") return null
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6">
+      <div className="max-w-md rounded-2xl border border-border-default bg-bg-surface/90 px-5 py-4 text-center shadow-xl backdrop-blur-xl">
+        <p className="text-sm font-medium text-text-primary">{graphTitle}</p>
+        <p className="mt-2 text-xs leading-5 text-text-muted">
+          Design the internals of {graphTitle}: endpoints, entities, workers, events,
+          validations, business rules, and policies.
+        </p>
+      </div>
+    </div>
   )
 }
 

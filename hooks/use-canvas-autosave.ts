@@ -7,8 +7,14 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error"
 
 export function useCanvasAutosave(
   projectId: string,
+  graphId: string,
   nodes: CanvasNode[],
-  edges: CanvasEdge[]
+  edges: CanvasEdge[],
+  options: {
+    title?: string
+    scopeKind?: string
+    parentNodeId?: string | null
+  } = {}
 ): { status: SaveStatus; save: () => void } {
   const [status, setStatus] = useState<SaveStatus>("idle")
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -18,11 +24,15 @@ export function useCanvasAutosave(
   const nodesRef = useRef(nodes)
   const edgesRef = useRef(edges)
   const projectIdRef = useRef(projectId)
+  const graphIdRef = useRef(graphId)
+  const optionsRef = useRef(options)
 
   useEffect(() => {
     nodesRef.current = nodes
     edgesRef.current = edges
     projectIdRef.current = projectId
+    graphIdRef.current = graphId
+    optionsRef.current = options
   })
 
   // Reset to idle after showing saved/error so the button returns to "Save".
@@ -37,10 +47,17 @@ export function useCanvasAutosave(
   const doSave = useCallback(async () => {
     setStatus("saving")
     try {
-      const res = await fetch(`/api/projects/${projectIdRef.current}/canvas`, {
+      const params = new URLSearchParams({ graphId: graphIdRef.current })
+      const res = await fetch(`/api/projects/${projectIdRef.current}/canvas?${params}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nodes: nodesRef.current, edges: edgesRef.current }),
+        body: JSON.stringify({
+          nodes: nodesRef.current,
+          edges: edgesRef.current,
+          title: optionsRef.current.title,
+          scopeKind: optionsRef.current.scopeKind,
+          parentNodeId: optionsRef.current.parentNodeId,
+        }),
       })
       setStatus(res.ok ? "saved" : "error")
     } catch {

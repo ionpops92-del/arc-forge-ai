@@ -12,6 +12,7 @@ import { CanvasRoom } from "@/components/editor/canvas/canvas-room"
 import { useProjectActions, type ProjectRow } from "@/hooks/use-project-actions"
 import type { CanvasTemplate } from "@/components/editor/starter-templates"
 import { InternalRealtimeProvider } from "@/hooks/use-realtime-room"
+import { createRealtimeRoomId } from "@/lib/canvas/graph-ids"
 import { cn } from "@/lib/utils"
 
 interface EditorWorkspaceClientProps {
@@ -19,6 +20,7 @@ interface EditorWorkspaceClientProps {
   ownedProjects: ProjectRow[]
   sharedProjects: ProjectRow[]
   roomId: string
+  graphId: string
 }
 
 export function EditorWorkspaceClient({
@@ -26,6 +28,7 @@ export function EditorWorkspaceClient({
   ownedProjects,
   sharedProjects,
   roomId,
+  graphId,
 }: EditorWorkspaceClientProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [aiSidebarOpen, setAiSidebarOpen] = useState(true)
@@ -35,12 +38,18 @@ export function EditorWorkspaceClient({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const saveFnRef = useRef<() => void>(() => {})
   const actions = useProjectActions()
+  const realtimeRoomId = createRealtimeRoomId(currentProject.id, graphId)
 
   const handleSaveStatusChange = useCallback((status: SaveStatus) => setSaveStatus(status), [])
   const handleSaveReady = useCallback((fn: () => void) => { saveFnRef.current = fn }, [])
 
   return (
-    <InternalRealtimeProvider projectId={currentProject.id} roomId={roomId}>
+    <InternalRealtimeProvider
+      key={graphId}
+      projectId={currentProject.id}
+      roomId={realtimeRoomId}
+      graphId={graphId}
+    >
         <div className="flex h-screen flex-col bg-bg-base">
           <EditorNavbar
             isOpen={sidebarOpen}
@@ -63,6 +72,7 @@ export function EditorWorkspaceClient({
           >
             <CanvasRoom
               projectId={currentProject.id}
+              graphId={graphId}
               pendingTemplate={pendingTemplate}
               onTemplateImported={() => setPendingTemplate(null)}
               onSaveStatusChange={handleSaveStatusChange}
@@ -85,7 +95,9 @@ export function EditorWorkspaceClient({
             isOpen={aiSidebarOpen}
             onClose={() => setAiSidebarOpen(false)}
             roomId={roomId}
+            realtimeRoomId={realtimeRoomId}
             projectId={currentProject.id}
+            graphId={graphId}
           />
 
           <ProjectDialogs {...actions} />

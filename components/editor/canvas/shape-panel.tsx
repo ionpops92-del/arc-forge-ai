@@ -12,6 +12,12 @@ import {
   KeyRound,
   Server,
   Workflow,
+  Braces,
+  Boxes,
+  FileCheck,
+  GitBranch,
+  Landmark,
+  Route,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import {
@@ -23,9 +29,11 @@ import {
 } from "@/types/canvas"
 import {
   SEMANTIC_NODE_TEMPLATES,
+  SERVICE_INTERNAL_NODE_TEMPLATES,
   semanticTemplateSize,
-  type SemanticTemplateType,
+  type SemanticNodeTemplate,
 } from "@/lib/canvas/semantic-defaults"
+import type { CanvasScopeKind } from "@/lib/canvas/canvas-doc"
 
 const SHAPE_ICONS: Record<NodeShape, LucideIcon> = {
   rectangle: RectangleHorizontal,
@@ -36,11 +44,17 @@ const SHAPE_ICONS: Record<NodeShape, LucideIcon> = {
   hexagon: Hexagon,
 }
 
-const SEMANTIC_TEMPLATE_ICONS: Record<SemanticTemplateType, LucideIcon> = {
+const SEMANTIC_TEMPLATE_ICONS: Record<SemanticNodeTemplate["semanticType"], LucideIcon> = {
   service: Server,
   database: Database,
   worker: Workflow,
   "auth-module": KeyRound,
+  endpoint: Route,
+  entity: Boxes,
+  "event-contract": GitBranch,
+  "business-rule": Braces,
+  "validation-rule": FileCheck,
+  policy: Landmark,
 }
 
 const PREVIEW_FILL = NODE_COLORS[0].fill
@@ -121,7 +135,7 @@ interface CanvasDragPayload {
   idPrefix?: string
 }
 
-export function ShapePanel() {
+export function ShapePanel({ graphScopeKind }: { graphScopeKind: CanvasScopeKind }) {
   const [drag, setDrag] = useState<DragState | null>(null)
 
   function handleDragStart(event: React.DragEvent, payload: CanvasDragPayload) {
@@ -151,6 +165,48 @@ export function ShapePanel() {
   }
 
   const previewSize = drag ? SHAPE_DEFAULTS[drag.shape] : null
+  const serviceInternalTemplates =
+    graphScopeKind === "service-internal" ? SERVICE_INTERNAL_NODE_TEMPLATES : []
+
+  function renderSemanticTemplate(template: SemanticNodeTemplate, variant: "root" | "internal") {
+    const Icon = SEMANTIC_TEMPLATE_ICONS[template.semanticType]
+    const color = NODE_COLORS[template.colorIndex]
+    const payload = {
+      shape: template.shape,
+      size: semanticTemplateSize(template),
+      data: {
+        ...template.data,
+        color: color.fill,
+        textColor: color.text,
+        shape: template.shape,
+        status: "draft",
+        tags: [],
+        sourceRefs: [],
+        assumptions: [],
+        decisionRefs: [],
+        owner: null,
+      },
+      idPrefix: template.semanticType,
+    } satisfies CanvasDragPayload
+
+    return (
+      <button
+        key={`${variant}-${template.semanticType}`}
+        draggable
+        onDragStart={(e) => handleDragStart(e, payload)}
+        onDrag={(e) => handleDrag(e, template.shape, payload.data)}
+        onDragEnd={handleDragEnd}
+        title={template.title}
+        className={
+          variant === "root"
+            ? "flex h-8 w-8 cursor-grab items-center justify-center rounded-xl border border-accent-primary/20 bg-accent-primary/10 text-accent-primary transition-colors hover:border-accent-primary/50 hover:bg-accent-primary/15 hover:text-text-primary active:cursor-grabbing"
+            : "flex h-8 w-8 cursor-grab items-center justify-center rounded-xl border border-accent-ai/25 bg-accent-ai/10 text-accent-ai-text transition-colors hover:border-accent-ai/60 hover:bg-accent-ai/15 hover:text-text-primary active:cursor-grabbing"
+        }
+      >
+        <Icon className="h-4 w-4" />
+      </button>
+    )
+  }
 
   return (
     <>
@@ -189,41 +245,15 @@ export function ShapePanel() {
             )
           })}
           <div className="mx-1 h-5 w-px bg-border-default" />
-          {SEMANTIC_NODE_TEMPLATES.map((template) => {
-            const Icon = SEMANTIC_TEMPLATE_ICONS[template.semanticType]
-            const color = NODE_COLORS[template.colorIndex]
-            const payload = {
-              shape: template.shape,
-              size: semanticTemplateSize(template),
-              data: {
-                ...template.data,
-                color: color.fill,
-                textColor: color.text,
-                shape: template.shape,
-                status: "draft",
-                tags: [],
-                sourceRefs: [],
-                assumptions: [],
-                decisionRefs: [],
-                owner: null,
-              },
-              idPrefix: template.semanticType,
-            } satisfies CanvasDragPayload
-
-            return (
-              <button
-                key={template.semanticType}
-                draggable
-                onDragStart={(e) => handleDragStart(e, payload)}
-                onDrag={(e) => handleDrag(e, template.shape, payload.data)}
-                onDragEnd={handleDragEnd}
-                title={template.title}
-                className="flex h-8 w-8 cursor-grab items-center justify-center rounded-xl border border-accent-primary/20 bg-accent-primary/10 text-accent-primary transition-colors hover:border-accent-primary/50 hover:bg-accent-primary/15 hover:text-text-primary active:cursor-grabbing"
-              >
-                <Icon className="h-4 w-4" />
-              </button>
-            )
-          })}
+          {SEMANTIC_NODE_TEMPLATES.map((template) => renderSemanticTemplate(template, "root"))}
+          {serviceInternalTemplates.length > 0 ? (
+            <>
+              <div className="mx-1 h-5 w-px bg-border-default" />
+              {serviceInternalTemplates.map((template) =>
+                renderSemanticTemplate(template, "internal")
+              )}
+            </>
+          ) : null}
         </div>
       </div>
     </>

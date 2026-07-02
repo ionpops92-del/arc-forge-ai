@@ -11,7 +11,7 @@ import {
 
 const RealtimeTokenRequestSchema = z.object({
   projectId: z.string().trim().min(1).max(100),
-  roomId: z.string().trim().min(1).max(100),
+  roomId: z.string().trim().min(1).max(240),
 })
 
 export async function POST(request: Request) {

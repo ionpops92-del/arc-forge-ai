@@ -11,6 +11,8 @@ import {
 } from "react"
 import type { CanvasSnapshot } from "@/lib/canvas/canvas-state"
 import { emptyCanvasSnapshot, sanitizeCanvasSnapshot } from "@/lib/canvas/canvas-state"
+import type { CanvasDocV1, CanvasScopeKind } from "@/lib/canvas/canvas-doc"
+import { ROOT_GRAPH_ID } from "@/lib/canvas/graph-ids"
 import { getPublicRealtimeUrl } from "@/lib/realtime/realtime-url"
 import type {
   RealtimeClientMessage,
@@ -38,6 +40,10 @@ interface RealtimeTokenResponse {
 interface RealtimeRoomContextValue {
   projectId: string
   roomId: string
+  graphId: string
+  graphTitle: string
+  graphScopeKind: CanvasScopeKind
+  parentNodeId: string | null
   currentUserName: string
   status: RealtimeConnectionStatus
   error: string | null
@@ -98,10 +104,12 @@ function toRealtimePayload(value: unknown): JsonValue {
 export function InternalRealtimeProvider({
   projectId,
   roomId,
+  graphId = ROOT_GRAPH_ID,
   children,
 }: {
   projectId: string
   roomId: string
+  graphId?: string
   children: React.ReactNode
 }) {
   const { user } = useCurrentUser()
@@ -116,6 +124,11 @@ export function InternalRealtimeProvider({
   const [connectionId, setConnectionId] = useState<string | null>(null)
   const [nodes, setNodes] = useState<CanvasNode[]>([])
   const [edges, setEdges] = useState<CanvasEdge[]>([])
+  const [graphTitle, setGraphTitle] = useState(graphId === ROOT_GRAPH_ID ? "System" : "Service design")
+  const [graphScopeKind, setGraphScopeKind] = useState<CanvasScopeKind>(
+    graphId === ROOT_GRAPH_ID ? "system-root" : "service-internal"
+  )
+  const [parentNodeId, setParentNodeId] = useState<string | null>(null)
   const [presence, setPresence] = useState<RealtimePresenceRecord[]>([])
   const [chatMessages, setChatMessages] = useState<Array<ChatFeedMessage & { id: string; createdAt: number }>>([])
   const [aiStatuses, setAiStatuses] = useState<Array<AiStatusFeedMessage & { id: string; createdAt: number }>>([])
@@ -258,10 +271,15 @@ export function InternalRealtimeProvider({
   useEffect(() => {
     let cancelled = false
 
-    fetch(`/api/projects/${projectId}/canvas`)
+    fetch(`/api/projects/${projectId}/canvas?graphId=${encodeURIComponent(graphId)}`)
       .then((res) => (res.ok ? res.json() : { canvas: null }))
-      .then(({ canvas }: { canvas: CanvasSnapshot | null }) => {
+      .then(({ canvas, doc }: { canvas: CanvasSnapshot | null; doc?: CanvasDocV1 | null }) => {
         if (cancelled) return
+        if (doc) {
+          setGraphTitle(doc.title)
+          setGraphScopeKind(doc.scopeKind)
+          setParentNodeId(doc.parentNodeId)
+        }
         setCanvasSnapshot(canvas ? sanitizeCanvasSnapshot(canvas) : emptyCanvasSnapshot())
       })
       .catch(() => {
@@ -271,7 +289,7 @@ export function InternalRealtimeProvider({
     return () => {
       cancelled = true
     }
-  }, [projectId, setCanvasSnapshot])
+  }, [graphId, projectId, setCanvasSnapshot])
 
   const scheduleReconnect = useCallback(() => {
     if (!shouldReconnectRef.current) return
@@ -402,6 +420,10 @@ export function InternalRealtimeProvider({
     () => ({
       projectId,
       roomId,
+      graphId,
+      graphTitle,
+      graphScopeKind,
+      parentNodeId,
       currentUserName,
       status,
       error,
@@ -420,6 +442,10 @@ export function InternalRealtimeProvider({
     [
       projectId,
       roomId,
+      graphId,
+      graphTitle,
+      graphScopeKind,
+      parentNodeId,
       currentUserName,
       status,
       error,

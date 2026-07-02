@@ -70,7 +70,18 @@ const nodeDataSchema = z
     subcanvasRef: z
       .object({
         graphId: z.string().trim().min(1).max(120),
+        scopeKind: z
+          .enum([
+            "service-internal",
+            "api-design",
+            "database-design",
+            "auth-design",
+            "worker-design",
+          ])
+          .optional(),
         title: z.string().max(240).optional(),
+        createdAt: z.string().max(80).optional(),
+        updatedAt: z.string().max(80).optional(),
       })
       .nullable()
       .optional(),

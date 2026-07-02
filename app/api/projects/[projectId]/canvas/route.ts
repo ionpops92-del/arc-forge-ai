@@ -1,5 +1,6 @@
 import { getCurrentProjectIdentity, userHasProjectAccess } from "@/lib/project-access"
-import { readCanvasSnapshot, writeCanvasSnapshot } from "@/lib/canvas/canvas-persistence"
+import { readCanvasDoc, writeCanvasDoc } from "@/lib/canvas/canvas-persistence"
+import { GraphIdError, graphIdFromSearchParam } from "@/lib/canvas/graph-ids"
 import { sanitizeCanvasSnapshot } from "@/lib/canvas/canvas-state"
 import type { NextRequest } from "next/server"
 
@@ -14,8 +15,17 @@ export async function GET(
   const hasAccess = await userHasProjectAccess(projectId, identity)
   if (!hasAccess) return Response.json({ error: "Not found" }, { status: 404 })
 
-  const canvas = await readCanvasSnapshot(projectId)
-  return Response.json({ canvas })
+  try {
+    const graphId = graphIdFromSearchParam(_request.nextUrl.searchParams.get("graphId"))
+    const doc = await readCanvasDoc(projectId, graphId)
+    const canvas = doc ? { nodes: doc.nodes, edges: doc.edges } : null
+    return Response.json({ canvas, doc })
+  } catch (error) {
+    if (error instanceof GraphIdError) {
+      return Response.json({ error: error.message }, { status: 400 })
+    }
+    throw error
+  }
 }
 
 export async function PUT(
@@ -29,8 +39,49 @@ export async function PUT(
   const hasAccess = await userHasProjectAccess(projectId, identity)
   if (!hasAccess) return Response.json({ error: "Not found" }, { status: 404 })
 
-  const body: unknown = await request.json().catch(() => ({}))
-  const { url } = await writeCanvasSnapshot(projectId, sanitizeCanvasSnapshot(body))
+  try {
+    const graphId = graphIdFromSearchParam(request.nextUrl.searchParams.get("graphId"))
+    const body: unknown = await request.json().catch(() => ({}))
+    const record = typeof body === "object" && body !== null ? body : {}
+    const { url, doc } = await writeCanvasDoc(
+      projectId,
+      sanitizeCanvasSnapshot(body),
+      {
+        graphId,
+        parentNodeId:
+          "parentNodeId" in record && typeof record.parentNodeId === "string"
+            ? record.parentNodeId
+            : null,
+        scopeKind:
+          "scopeKind" in record && typeof record.scopeKind === "string"
+            ? docScopeFromRequest(record.scopeKind, graphId)
+            : undefined,
+        title:
+          "title" in record && typeof record.title === "string"
+            ? record.title
+            : undefined,
+      }
+    )
 
-  return Response.json({ url })
+    return Response.json({ url, doc })
+  } catch (error) {
+    if (error instanceof GraphIdError) {
+      return Response.json({ error: error.message }, { status: 400 })
+    }
+    throw error
+  }
+}
+
+function docScopeFromRequest(scopeKind: string, graphId: string) {
+  if (graphId === "graph_root") return "system-root" as const
+  if (
+    scopeKind === "service-internal" ||
+    scopeKind === "api-design" ||
+    scopeKind === "database-design" ||
+    scopeKind === "auth-design" ||
+    scopeKind === "worker-design"
+  ) {
+    return scopeKind
+  }
+  return undefined
 }

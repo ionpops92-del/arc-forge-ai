@@ -1,12 +1,14 @@
 import { z } from "zod"
 import { AiTaskType } from "@/app/generated/prisma/client"
 import { createAiTaskRun } from "@/lib/ai-tasks/task-service"
+import { graphIdFromSearchParam, parseRealtimeRoomId } from "@/lib/canvas/graph-ids"
 import { getAccessibleProject, getCurrentProjectIdentity } from "@/lib/project-access"
 
 const DesignRequestSchema = z.object({
   prompt: z.string().trim().min(1),
   roomId: z.string().trim().min(1),
   projectId: z.string().trim().min(1),
+  graphId: z.string().trim().min(1).optional(),
 })
 
 export async function POST(request: Request) {
@@ -27,7 +29,17 @@ export async function POST(request: Request) {
     return Response.json({ error: "Not found" }, { status: 404 })
   }
 
-  if (roomId !== project.id) {
+  let parsedRoom: ReturnType<typeof parseRealtimeRoomId>
+  let graphId: string
+
+  try {
+    parsedRoom = parseRealtimeRoomId(roomId)
+    graphId = graphIdFromSearchParam(parsed.data.graphId ?? null)
+  } catch {
+    return Response.json({ error: "Invalid roomId" }, { status: 400 })
+  }
+
+  if (parsedRoom.projectId !== project.id || parsedRoom.graphId !== graphId) {
     return Response.json({ error: "Invalid roomId" }, { status: 400 })
   }
 
@@ -37,7 +49,9 @@ export async function POST(request: Request) {
     userId: identity.userId,
     payloadJson: {
       prompt,
-      roomId: project.id,
+      roomId,
+      projectId: project.id,
+      graphId,
       userId: identity.userId,
     },
   })

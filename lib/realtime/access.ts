@@ -8,8 +8,9 @@ import {
   type CreatedRealtimeToken,
 } from "@/lib/realtime/token"
 import type { RealtimeTokenPayload } from "@/lib/realtime/types"
+import { GraphIdError, parseRealtimeRoomId } from "@/lib/canvas/graph-ids"
 
-const MAX_ROOM_ID_LENGTH = 100
+const MAX_PROJECT_ID_LENGTH = 100
 
 export class RealtimeAccessError extends Error {
   constructor(
@@ -30,6 +31,18 @@ function normalizeRoomId(value: string) {
   return value.trim()
 }
 
+function parseRoomOrThrow(roomId: string) {
+  try {
+    return parseRealtimeRoomId(roomId)
+  } catch (error) {
+    if (error instanceof GraphIdError) {
+      throw new RealtimeAccessError(error.message, 400)
+    }
+
+    throw error
+  }
+}
+
 export async function authorizeRealtimeRoomAccess({
   identity,
   projectId,
@@ -41,17 +54,17 @@ export async function authorizeRealtimeRoomAccess({
 
   const normalizedProjectId = normalizeRoomId(projectId)
   const normalizedRoomId = normalizeRoomId(roomId)
+  const parsedRoom = parseRoomOrThrow(normalizedRoomId)
 
   if (
     !normalizedProjectId ||
-    !normalizedRoomId ||
-    normalizedProjectId.length > MAX_ROOM_ID_LENGTH ||
-    normalizedRoomId.length > MAX_ROOM_ID_LENGTH
+    normalizedProjectId.length > MAX_PROJECT_ID_LENGTH ||
+    parsedRoom.projectId.length > MAX_PROJECT_ID_LENGTH
   ) {
     throw new RealtimeAccessError("Invalid realtime room", 400)
   }
 
-  if (normalizedRoomId !== normalizedProjectId) {
+  if (parsedRoom.projectId !== normalizedProjectId) {
     throw new RealtimeAccessError("Realtime room must match project", 400)
   }
 
@@ -83,7 +96,14 @@ export async function createAuthorizedRealtimeToken(
 export async function verifyRealtimeTokenProjectAccess(
   payload: RealtimeTokenPayload
 ) {
-  if (payload.roomId !== payload.projectId) return false
+  let parsedRoom: ReturnType<typeof parseRealtimeRoomId>
+  try {
+    parsedRoom = parseRealtimeRoomId(payload.roomId)
+  } catch {
+    return false
+  }
+
+  if (parsedRoom.projectId !== payload.projectId) return false
 
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },

@@ -6,6 +6,7 @@ import {
   getAccessibleProject,
   getCurrentProjectIdentity,
 } from "@/lib/project-access"
+import { GraphIdError, graphIdFromSearchParam } from "@/lib/canvas/graph-ids"
 
 export default async function EditorWorkspacePage(
   props: PageProps<"/editor/[roomId]">
@@ -15,6 +16,17 @@ export default async function EditorWorkspacePage(
   if (!identity.userId) redirect("/sign-in")
 
   const { roomId } = await props.params
+  const searchParams = await props.searchParams
+  let graphId: string
+  try {
+    const graphParam = searchParams.graphId
+    graphId = graphIdFromSearchParam(
+      Array.isArray(graphParam) ? graphParam[0] ?? null : graphParam ?? null
+    )
+  } catch (error) {
+    if (error instanceof GraphIdError) return <AccessDenied />
+    throw error
+  }
   const project = await getAccessibleProject(roomId, identity)
 
   if (!project) {
@@ -32,6 +44,7 @@ export default async function EditorWorkspacePage(
       ownedProjects={owned.map((item) => ({ id: item.id, name: item.name }))}
       sharedProjects={shared.map((item) => ({ id: item.id, name: item.name }))}
       roomId={roomId}
+      graphId={graphId}
     />
   )
 }

@@ -34,7 +34,7 @@ const INTERNAL_PUBLISH_USER_ID = "arc-forge-ai"
 
 const InternalBroadcastSchema = z.object({
   projectId: z.string().trim().min(1).max(100),
-  roomId: z.string().trim().min(1).max(100),
+  roomId: z.string().trim().min(1).max(240),
   userId: z.string().trim().min(1).max(120).optional().nullable(),
   event: z.object({
     type: z.string().trim().min(1).max(120),
