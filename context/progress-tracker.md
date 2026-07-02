@@ -3,10 +3,10 @@
 Update this file whenever the current phase, active feature, or implementation state changes.
 
 ## Current Phase
-- Service Drill-Down Subcanvas
+- Design IR Compiler & Export
 
 ## Current Goal
-- Establish graph-aware semantic canvas drill-down for service internals while preserving Arc Forge v1 as a semantic architect and instruction generator, not an app builder.
+- Arc Forge v1 is a semantic architect and instruction generator, not an app builder. Design IR is machine-readable architecture. Prompt Pack generation is not active yet.
 
 ## Completed
 
@@ -53,15 +53,17 @@ The numbered feature notes below are historical implementation notes. They descr
 - Semantic Canvas Foundation: canvas nodes and edges now normalize to versioned semantic taxonomy metadata, legacy items remain unclassified until explicitly classified, service/database/worker/auth-module semantic templates are available, selected items expose a semantic property inspector, advisory validation warnings identify missing technical meaning, edge labelItems mirror label/labels compatibility, transient UI state is stripped from durable canvas data, CanvasDoc v1 compatibility helpers are defined, a deterministic Design IR v1 draft compiler is available for future instruction generation, and internal AI/realtime publisher IDs use neutral Arc Forge naming.
 - Workspace Panel Layout: the editor now reserves desktop canvas gutters for open project and AI sidebars, uses a stronger mobile/tablet navigation deck treatment for the project sidebar, compresses workspace navbar actions to icon controls on narrow viewports so semantic inspector panels no longer visually collide with workspace navigation, and keeps Account/Sign out accessible through a compact avatar menu on small screens.
 - Service Drill-Down Subcanvas: the root canvas graph remains backward compatible as `graph_root`; service nodes can create and open service-internal CanvasDoc subcanvas graphs stored separately; editor URLs and breadcrumbs switch graph context; realtime rooms, autosave, and AI design updates are graph-scoped; service-internal templates expose endpoint, entity, worker, event contract, business rule, validation rule, and policy nodes; sanitizer logic preserves subcanvas references while stripping transient UI state; and Design IR includes a deterministic multi-CanvasDoc helper.
+- Design IR Compiler & Export: projects can compile a deterministic read-only Design IR from the root CanvasDoc plus directly linked child graphs; the IR preserves graph hierarchy, parent service metadata for child nodes, semantic sections for services/apis/endpoints/data models/workers/events/policies/business rules/validation rules, unclassified nodes, relations with labels and source graph IDs, validation summaries, and provenance. Raw secret-looking values are stripped or redacted while secretRef-style references survive. The editor exposes a compact Design IR modal with status, compiled graph IDs, JSON preview, copy, and download controls.
 
 ## In Progress
 
-- Graph hierarchy validation and product smoke coverage — verify service drill-down creation/opening, graph-scoped persistence, realtime isolation, semantic internal templates, advisory warnings, existing edge/node interactions, AI sidebar flows, and protected access behavior under realistic local workflows.
+- Design IR validation and product smoke coverage — verify read-only project export access, root plus child graph compilation, advisory validation, secret redaction, deterministic output, desktop/mobile layout, and existing semantic canvas behavior under realistic local workflows.
 - Foundation stabilization and production hardening — keep verifying the internal auth, account recovery, AI task runner, realtime, storage, and AI provider foundation under realistic local workflows, then tighten deployment guidance and operational edge cases.
 
 ## Next Up
 - Additional semantic drill-down scopes for API, database, auth-module, and worker nodes.
-- Design IR expansion and semantic compiler coverage for technical specs, API contracts, and external coding-agent instruction packs.
+- Prompt Pack generation remains future work and is not active yet.
+- Design IR expansion for technical specs, API contracts, and external coding-agent instruction packs.
 - Realtime collaboration stabilization, including conflict handling, reconnection polish, event replay strategy, and production reverse-proxy guidance.
 
 

@@ -118,6 +118,7 @@ shadcn/ui on top of Tailwind. No custom design system. Components live in `compo
 - Canvas graph breadcrumb: a small glass overlay sits below the navbar; it identifies the current graph and lets users jump from a service drill-down back to the system root without overlapping the sidebars or inspector.
 - Workspace navbar actions compress to icon-only controls on small viewports, while desktop keeps text labels for faster scanning.
 - Compact account menu: on small workspaces, the avatar remains the only navbar account trigger and opens a compact cockpit-style popover with Account and Sign out actions layered above the mobile project deck.
+- Design IR preview/export: the workspace navbar exposes a compact `FileJson` action that opens a bounded cockpit-style modal with status, compiled graph IDs, validation counts, JSON preview, Copy JSON, and Download JSON. Design IR is machine-readable architecture. Prompt Pack generation is not active yet.
 - Modals and dialogs: centered overlay, `rounded-3xl`, dark background with backdrop blur.
 - Navbar: top bar with dark background and bottom border.
 

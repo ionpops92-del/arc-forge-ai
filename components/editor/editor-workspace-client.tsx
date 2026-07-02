@@ -6,6 +6,7 @@ import type { SaveStatus } from "@/hooks/use-canvas-autosave"
 import { ProjectDialogs } from "@/components/editor/project-dialogs"
 import { ProjectShareDialog } from "@/components/editor/project-share-dialog"
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal"
+import { DesignIrPanel } from "@/components/editor/design-ir-panel"
 import { ProjectSidebar } from "@/components/editor/project-sidebar"
 import { AiSidebar } from "@/components/editor/ai-sidebar"
 import { CanvasRoom } from "@/components/editor/canvas/canvas-room"
@@ -34,6 +35,7 @@ export function EditorWorkspaceClient({
   const [aiSidebarOpen, setAiSidebarOpen] = useState(true)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [designIrOpen, setDesignIrOpen] = useState(false)
   const [pendingTemplate, setPendingTemplate] = useState<CanvasTemplate | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const saveFnRef = useRef<() => void>(() => {})
@@ -59,6 +61,7 @@ export function EditorWorkspaceClient({
             onToggleAiSidebar={() => setAiSidebarOpen((prev) => !prev)}
             onOpenShareDialog={() => setShareDialogOpen(true)}
             onOpenTemplates={() => setTemplatesOpen(true)}
+            onOpenDesignIr={() => setDesignIrOpen(true)}
             saveStatus={saveStatus}
             onSave={() => saveFnRef.current()}
           />
@@ -110,6 +113,11 @@ export function EditorWorkspaceClient({
             open={templatesOpen}
             onOpenChange={setTemplatesOpen}
             onImport={(template) => setPendingTemplate(template)}
+          />
+          <DesignIrPanel
+            projectId={currentProject.id}
+            open={designIrOpen}
+            onOpenChange={setDesignIrOpen}
           />
         </div>
     </InternalRealtimeProvider>

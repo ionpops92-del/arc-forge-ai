@@ -17,11 +17,11 @@
 
 ## System Boundaries
 
-- `app/api` — Authenticated request handlers: input validation, ownership checks, task triggering, and persistence.
+- `app/api` — Authenticated request handlers: input validation, ownership checks, task triggering, read-only exports, and persistence.
 - `lib/ai-tasks` — Long-running background jobs: task leasing, retries, AI design generation, and spec generation.
 - `lib/ai/providers` — Server-side AI provider selection and external model adapters.
 - `lib/ai/design` / `lib/ai/spec` — Provider contracts, structured design actions, and spec context helpers.
-- `lib/canvas` — Canvas snapshot sanitization, CanvasDoc v1 compatibility helpers, semantic validation, and draft Design IR v1 compilation.
+- `lib/canvas` — Canvas snapshot sanitization, CanvasDoc v1 compatibility helpers, semantic validation, and deterministic Design IR v1 compilation/export.
 - `scripts/ai-worker.ts` — Worker process entrypoint for local and production task execution.
 - `lib/email` — Server-only email provider selection and delivery for account emails.
 - `lib/realtime` — Internal realtime foundation: signed room tokens, typed protocol, room registry, and WebSocket server.
@@ -38,6 +38,7 @@
 - Project records, spec records, AI task run records, and internal realtime room events belong in PostgreSQL.
 - Canvas content and Markdown output are stored in and retrieved from the configured artifact storage provider.
 - Existing canvas storage remains compatible with `{ nodes, edges }` snapshots. New graph-aware canvas writes persist CanvasDoc v1 documents; legacy root reads normalize existing snapshots into `graph_root`, while subcanvas graphs are separate CanvasDoc v1 objects referenced by `node.data.subcanvasRef`.
+- Design IR is machine-readable architecture. It is compiled on demand from the root CanvasDoc and directly linked child graph CanvasDocs, is exposed through a read-only project route, and is not persisted as an additional artifact by default.
 - Local development defaults to filesystem storage under `.local-storage`; external object storage such as Vercel Blob is optional.
 - The database stores only the provider object reference in the existing `canvasBlobUrl` and `filePath` fields.
 
@@ -80,6 +81,14 @@
 - Execution: durable background task via the internal PostgreSQL-backed AI task runner.
 - Provider: selected through the same server-side AI provider factory.
 - Output: Markdown technical spec saved through the storage provider and linked to the project in the database.
+
+### Design IR Export
+
+- Input: root `graph_root` CanvasDoc plus one level of child CanvasDocs referenced by root node `subcanvasRef.graphId`.
+- Execution: deterministic in-process compiler, not AI.
+- Output: read-only JSON export containing project defaults, graph hierarchy, typed semantic sections, relations, validation results, and provenance.
+- Missing child graphs, unclassified items, missing required semantic fields, invalid graph IDs, relationship target issues, and raw secret redaction appear as advisory validation results. Export is not blocked.
+- Prompt Pack generation is not active yet.
 
 ## Invariants
 
