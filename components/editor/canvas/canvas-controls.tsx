@@ -83,6 +83,10 @@ function CanvasHelp({ onClose }: { onClose: () => void }) {
         <li>Middle or right drag empty canvas: pan.</li>
         <li>Double-click or Add label: edit labels.</li>
         <li>Drag an edge endpoint: reconnect the edge.</li>
+        <li>Drag semantic templates to seed service, database, worker, or auth nodes.</li>
+        <li>Select a node or edge: edit semantic metadata.</li>
+        <li>Semantic warnings mark missing technical meaning.</li>
+        <li>Subcanvas drill-down is prepared, not active yet.</li>
         <li>Use Save to persist the current canvas.</li>
       </ul>
     </div>

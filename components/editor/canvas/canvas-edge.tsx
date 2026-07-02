@@ -4,23 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from "@xyflow/react"
 import type { EdgeProps } from "@xyflow/react"
 import { Plus, Trash2, X } from "lucide-react"
-import type { CanvasEdge, CanvasEdgeData } from "@/types/canvas"
+import type { CanvasEdge } from "@/types/canvas"
+import { semanticEdgeTypeLabel } from "@/types/canvas"
+import {
+  createEdgeLabelItems,
+  edgeLabelTexts,
+  mirrorEdgeLabelData,
+  normalizeEdgeLabelItems,
+} from "@/lib/canvas/edge-labels"
 import { useCanvasMutations } from "@/components/editor/canvas/canvas-mutation-context"
 
 type EditingTarget = number | "new" | null
-
-function normalizeLabels(data?: CanvasEdgeData) {
-  const labels = Array.isArray(data?.labels) ? data.labels : []
-  const normalized = labels
-    .map((label) => label.trim())
-    .filter(Boolean)
-    .slice(0, 8)
-
-  if (normalized.length > 0) return normalized
-
-  const legacyLabel = data?.label?.trim()
-  return legacyLabel ? [legacyLabel] : []
-}
 
 export function CanvasEdgeComponent({
   id,
@@ -41,7 +35,9 @@ export function CanvasEdgeComponent({
   const hasCommittedEditRef = useRef(false)
   const labelEditorRef = useRef<HTMLDivElement>(null)
   const { deleteEdge, updateEdgeData } = useCanvasMutations()
-  const labels = useMemo(() => normalizeLabels(data), [data])
+  const labelItems = useMemo(() => normalizeEdgeLabelItems(data), [data])
+  const labels = useMemo(() => edgeLabelTexts(data), [data])
+  const semanticType = data?.semanticType ?? "unclassified"
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -64,13 +60,13 @@ export function CanvasEdgeComponent({
         .map((label) => label.trim())
         .filter(Boolean)
         .slice(0, 8)
+      const cleanLabelItems = createEdgeLabelItems(cleanLabels, labelItems, `${id}-label`)
 
       updateEdgeData(id, {
-        label: cleanLabels[0] ?? "",
-        labels: cleanLabels,
+        ...mirrorEdgeLabelData(cleanLabelItems),
       })
     },
-    [id, updateEdgeData]
+    [id, labelItems, updateEdgeData]
   )
 
   const startEditing = useCallback(
@@ -240,6 +236,12 @@ export function CanvasEdgeComponent({
               )}
             </div>
           ))}
+
+          {isActive && semanticType !== "unclassified" ? (
+            <div className="rounded-full border border-accent-primary/25 bg-bg-surface/90 px-2 py-0.5 text-[10px] font-medium text-accent-primary shadow-xl">
+              {semanticEdgeTypeLabel(semanticType)}
+            </div>
+          ) : null}
 
           <div className="flex items-center gap-1">
             {editingTarget === "new" ? (

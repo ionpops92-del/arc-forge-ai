@@ -1,11 +1,49 @@
 import { z } from "zod"
 import type { CanvasEdge, CanvasNode } from "@/types/canvas"
-import { NODE_COLORS, NODE_SHAPES, SHAPE_DEFAULTS } from "@/types/canvas"
+import {
+  NODE_COLORS,
+  NODE_SHAPES,
+  SEMANTIC_EDGE_TYPES,
+  SEMANTIC_NODE_TYPES,
+  SHAPE_DEFAULTS,
+  isSemanticEdgeType,
+  isSemanticNodeType,
+  type CanvasMetadataStatus,
+  type CanvasNodeData,
+  type NodeShape,
+} from "@/types/canvas"
+import { mirrorEdgeLabelData, normalizeEdgeLabelItems } from "@/lib/canvas/edge-labels"
+import {
+  looksLikeRawSecretValue,
+  shouldStripSecretField,
+} from "@/lib/canvas/secret-guards"
 
 export interface CanvasSnapshot {
   nodes: CanvasNode[]
   edges: CanvasEdge[]
 }
+
+const TRANSIENT_FIELD_KEYS = new Set([
+  "selected",
+  "dragging",
+  "resizing",
+  "hovered",
+  "isEditing",
+  "draft",
+  "draftText",
+  "draftLabel",
+  "activeToolbar",
+  "openPopover",
+  "lassoRectangle",
+  "temporaryReconnectLine",
+  "presence",
+  "cursor",
+  "cursors",
+])
+
+const metadataStatusSchema = z
+  .enum(["draft", "approved", "deprecated"])
+  .optional()
 
 const positionSchema = z.object({
   x: z.number().finite(),
@@ -15,9 +53,27 @@ const positionSchema = z.object({
 const nodeDataSchema = z
   .object({
     label: z.string().max(240).default(""),
+    semanticType: z.string().max(80).optional(),
+    name: z.string().max(240).optional(),
+    description: z.string().max(4000).optional(),
+    tags: z.array(z.string().max(80)).max(24).optional(),
+    status: metadataStatusSchema,
+    sourceRefs: z.array(z.string().max(240)).max(32).optional(),
+    assumptions: z.array(z.string().max(500)).max(32).optional(),
+    decisionRefs: z.array(z.string().max(240)).max(32).optional(),
+    owner: z.string().max(240).nullable().optional(),
+    createdAt: z.string().max(80).optional(),
+    updatedAt: z.string().max(80).optional(),
     color: z.string().max(80).optional(),
     textColor: z.string().max(80).optional(),
-    shape: z.enum(NODE_SHAPES).optional(),
+    shape: z.string().max(80).optional(),
+    subcanvasRef: z
+      .object({
+        graphId: z.string().trim().min(1).max(120),
+        title: z.string().max(240).optional(),
+      })
+      .nullable()
+      .optional(),
   })
   .passthrough()
 
@@ -31,13 +87,34 @@ const nodeSchema = z
     height: z.number().finite().positive().max(2000).optional(),
     selected: z.boolean().optional(),
     dragging: z.boolean().optional(),
+    resizing: z.boolean().optional(),
   })
   .passthrough()
 
 const edgeDataSchema = z
   .object({
+    semanticType: z.string().max(80).optional(),
+    name: z.string().max(240).optional(),
     label: z.string().max(240).optional(),
     labels: z.array(z.string().max(240)).max(8).optional(),
+    labelItems: z
+      .array(
+        z.object({
+          id: z.string().max(120),
+          text: z.string().max(240),
+        })
+      )
+      .max(8)
+      .optional(),
+    description: z.string().max(4000).optional(),
+    tags: z.array(z.string().max(80)).max(24).optional(),
+    status: metadataStatusSchema,
+    sourceRefs: z.array(z.string().max(240)).max(32).optional(),
+    assumptions: z.array(z.string().max(500)).max(32).optional(),
+    decisionRefs: z.array(z.string().max(240)).max(32).optional(),
+    owner: z.string().max(240).nullable().optional(),
+    createdAt: z.string().max(80).optional(),
+    updatedAt: z.string().max(80).optional(),
   })
   .passthrough()
 
@@ -50,6 +127,7 @@ const edgeSchema = z
     targetHandle: z.string().max(120).nullable().optional(),
     type: z.literal("canvasEdge").default("canvasEdge"),
     data: edgeDataSchema.default({}),
+    selected: z.boolean().optional(),
   })
   .passthrough()
 
@@ -62,35 +140,150 @@ export function emptyCanvasSnapshot(): CanvasSnapshot {
   return { nodes: [], edges: [] }
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean)
+}
+
+function normalizeStatus(value: unknown): CanvasMetadataStatus {
+  return value === "approved" || value === "deprecated" ? value : "draft"
+}
+
+function normalizeShape(value: unknown): NodeShape {
+  return typeof value === "string" && NODE_SHAPES.includes(value as NodeShape)
+    ? (value as NodeShape)
+    : "rectangle"
+}
+
+function sanitizeUnknownField(key: string, value: unknown): unknown {
+  if (TRANSIENT_FIELD_KEYS.has(key)) return undefined
+  if (shouldStripSecretField(key, value)) return undefined
+
+  if (typeof value === "string") {
+    return looksLikeRawSecretValue(value) ? "[redacted-secret]" : value
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeUnknownField(key, item))
+      .filter((item) => item !== undefined)
+  }
+
+  if (isPlainRecord(value)) {
+    return sanitizeDataRecord(value)
+  }
+
+  return value
+}
+
+function sanitizeDataRecord(data: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(data)) {
+    const nextValue = sanitizeUnknownField(key, value)
+    if (nextValue !== undefined) sanitized[key] = nextValue
+  }
+
+  return sanitized
+}
+
+function sanitizeTopLevelRest(
+  data: Record<string, unknown>,
+  omittedKeys: readonly string[]
+): Record<string, unknown> {
+  const sanitized = sanitizeDataRecord(data)
+  for (const key of omittedKeys) {
+    delete sanitized[key]
+  }
+  return sanitized
+}
+
+function normalizeNodeSemanticType(value: unknown) {
+  return isSemanticNodeType(value) ? value : SEMANTIC_NODE_TYPES[0]
+}
+
+function normalizeEdgeSemanticType(value: unknown) {
+  return isSemanticEdgeType(value) ? value : SEMANTIC_EDGE_TYPES[0]
+}
+
+function normalizeNodeData(data: z.infer<typeof nodeDataSchema>): CanvasNodeData {
+  const sanitized = sanitizeDataRecord(data) as Partial<CanvasNodeData>
+  const label = typeof sanitized.label === "string" ? sanitized.label.trim() : ""
+  const name = typeof sanitized.name === "string" ? sanitized.name.trim() : label
+  const shape = normalizeShape(sanitized.shape)
+
+  return {
+    ...sanitized,
+    label,
+    name,
+    semanticType: normalizeNodeSemanticType(sanitized.semanticType),
+    status: normalizeStatus(sanitized.status),
+    tags: normalizeStringArray(sanitized.tags),
+    sourceRefs: normalizeStringArray(sanitized.sourceRefs),
+    assumptions: normalizeStringArray(sanitized.assumptions),
+    decisionRefs: normalizeStringArray(sanitized.decisionRefs),
+    owner: typeof sanitized.owner === "string" ? sanitized.owner.trim() || null : null,
+    color: typeof sanitized.color === "string" ? sanitized.color : NODE_COLORS[0].fill,
+    textColor:
+      typeof sanitized.textColor === "string" ? sanitized.textColor : NODE_COLORS[0].text,
+    shape,
+  }
+}
+
 export function sanitizeCanvasSnapshot(value: unknown): CanvasSnapshot {
   const parsed = canvasSnapshotSchema.safeParse(value)
   if (!parsed.success) return emptyCanvasSnapshot()
 
   return {
     nodes: parsed.data.nodes.map((node) => {
-      const shape = node.data.shape ?? "rectangle"
+      const data = normalizeNodeData(node.data)
+      const shape = data.shape ?? "rectangle"
       const size = SHAPE_DEFAULTS[shape] ?? SHAPE_DEFAULTS.rectangle
+      const rest = sanitizeTopLevelRest(node, [
+        "selected",
+        "dragging",
+        "resizing",
+        "data",
+        "id",
+        "type",
+        "position",
+        "width",
+        "height",
+      ])
+
       return {
-        ...node,
+        ...rest,
         id: node.id.trim(),
         type: "canvasNode",
-        data: {
-          ...node.data,
-          label: node.data.label ?? "",
-          color: node.data.color ?? NODE_COLORS[0].fill,
-          textColor: node.data.textColor ?? NODE_COLORS[0].text,
-          shape,
-        },
+        position: node.position,
+        data,
         width: node.width ?? size.width,
         height: node.height ?? size.height,
-        selected: false,
-        dragging: false,
       } as CanvasNode
     }),
     edges: parsed.data.edges.map((edge) => {
-      const labels = normalizeEdgeLabels(edge.data)
+      const sanitizedData = sanitizeDataRecord(edge.data)
+      const labelItems = normalizeEdgeLabelItems(sanitizedData)
+      const mirroredLabels = mirrorEdgeLabelData(labelItems)
+      const rest = sanitizeTopLevelRest(edge, [
+        "selected",
+        "data",
+        "id",
+        "source",
+        "target",
+        "sourceHandle",
+        "targetHandle",
+        "type",
+      ])
+
       return {
-        ...edge,
+        ...rest,
         id: edge.id.trim(),
         source: edge.source.trim(),
         target: edge.target.trim(),
@@ -98,9 +291,22 @@ export function sanitizeCanvasSnapshot(value: unknown): CanvasSnapshot {
         targetHandle: edge.targetHandle ?? null,
         type: "canvasEdge",
         data: {
-          ...edge.data,
-          label: labels[0] ?? "",
-          labels,
+          ...sanitizedData,
+          semanticType: normalizeEdgeSemanticType(sanitizedData.semanticType),
+          name:
+            typeof sanitizedData.name === "string"
+              ? sanitizedData.name.trim()
+              : mirroredLabels.label,
+          status: normalizeStatus(sanitizedData.status),
+          tags: normalizeStringArray(sanitizedData.tags),
+          sourceRefs: normalizeStringArray(sanitizedData.sourceRefs),
+          assumptions: normalizeStringArray(sanitizedData.assumptions),
+          decisionRefs: normalizeStringArray(sanitizedData.decisionRefs),
+          owner:
+            typeof sanitizedData.owner === "string"
+              ? sanitizedData.owner.trim() || null
+              : null,
+          ...mirroredLabels,
         },
         markerEnd: {
           type: "arrowclosed",
@@ -108,23 +314,9 @@ export function sanitizeCanvasSnapshot(value: unknown): CanvasSnapshot {
           width: 16,
           height: 16,
         },
-        selected: false,
       }
     }) as CanvasEdge[],
   }
-}
-
-function normalizeEdgeLabels(data: { label?: string; labels?: string[] }) {
-  const labels = Array.isArray(data.labels) ? data.labels : []
-  const normalized = labels
-    .map((label) => label.trim())
-    .filter(Boolean)
-    .slice(0, 8)
-
-  if (normalized.length > 0) return normalized
-
-  const legacyLabel = data.label?.trim()
-  return legacyLabel ? [legacyLabel] : []
 }
 
 export function serializeCanvasSnapshot(snapshot: CanvasSnapshot) {

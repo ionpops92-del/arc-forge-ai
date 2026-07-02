@@ -21,6 +21,7 @@
 - `lib/ai-tasks` — Long-running background jobs: task leasing, retries, AI design generation, and spec generation.
 - `lib/ai/providers` — Server-side AI provider selection and external model adapters.
 - `lib/ai/design` / `lib/ai/spec` — Provider contracts, structured design actions, and spec context helpers.
+- `lib/canvas` — Canvas snapshot sanitization, CanvasDoc v1 compatibility helpers, semantic validation, and draft Design IR v1 compilation.
 - `scripts/ai-worker.ts` — Worker process entrypoint for local and production task execution.
 - `lib/email` — Server-only email provider selection and delivery for account emails.
 - `lib/realtime` — Internal realtime foundation: signed room tokens, typed protocol, room registry, and WebSocket server.
@@ -36,6 +37,7 @@
 - **Storage provider**: generated artifacts — canvas snapshots at `canvas/{projectId}.json` and specs at `specs/{projectId}/{specId}.md`.
 - Project records, spec records, AI task run records, and internal realtime room events belong in PostgreSQL.
 - Canvas content and Markdown output are stored in and retrieved from the configured artifact storage provider.
+- Existing canvas storage remains compatible with `{ nodes, edges }` snapshots. CanvasDoc v1 is defined as a compatibility document shape for semantic architecture data, but full CanvasDoc persistence is not required by the current storage layer.
 - Local development defaults to filesystem storage under `.local-storage`; external object storage such as Vercel Blob is optional.
 - The database stores only the provider object reference in the existing `canvasBlobUrl` and `filePath` fields.
 
@@ -59,6 +61,7 @@
 - Templates are loaded into the active internal realtime canvas state when a user imports one.
 - Import can occur on canvas creation or from within the editor at any time.
 - Template data follows the same node/edge schema as user-created canvas content.
+- Semantic templates seed typed node metadata for service, database, worker, and auth-module nodes while preserving the existing shape templates.
 - Templates do not require a separate database record; they are resolved by template ID at import time.
 
 ## AI Generation Model
@@ -91,3 +94,5 @@
 9. Non-local browser-facing HTTP and WebSocket transport must use HTTPS/WSS and fail closed when secure transport cannot be verified.
 10. AI provider API keys are server-only and are required only when their provider is explicitly selected.
 11. Email delivery secrets are server-only, and raw verification/reset tokens must never be stored in the database.
+12. Durable canvas data must not include transient UI state such as selected, dragging, hovered, editing drafts, lasso rectangles, reconnect ghosts, or presence cursors.
+13. Raw secret values must not be stored in canvas metadata or exported Design IR; use secretRef-style references only.

@@ -2,6 +2,8 @@ import { z } from "zod"
 import { NODE_COLORS, NODE_SHAPES, SHAPE_DEFAULTS } from "@/types/canvas"
 import type { CanvasEdge, CanvasNode, NodeShape } from "@/types/canvas"
 import type { CanvasSnapshot } from "@/lib/canvas/canvas-state"
+import { baseNodeData } from "@/lib/canvas/semantic-defaults"
+import { createEdgeLabelItems, mirrorEdgeLabelData } from "@/lib/canvas/edge-labels"
 
 const objectIdSchema = z.string().trim().min(1).max(120)
 const labelSchema = z.string().trim().min(1).max(240)
@@ -96,7 +98,7 @@ function createCanvasNode(action: Extract<DesignAction, { type: "addNode" }>): C
     type: "canvasNode",
     position: { x: action.x, y: action.y },
     data: {
-      label: action.label,
+      ...baseNodeData(action.label),
       color: color.fill,
       textColor: color.text,
       shape,
@@ -107,6 +109,8 @@ function createCanvasNode(action: Extract<DesignAction, { type: "addNode" }>): C
 }
 
 function createCanvasEdge(action: Extract<DesignAction, { type: "addEdge" }>): CanvasEdge {
+  const labelItems = createEdgeLabelItems(action.label ? [action.label] : [], [], `${action.id}-label`)
+
   return {
     id: action.id,
     type: "canvasEdge",
@@ -114,7 +118,17 @@ function createCanvasEdge(action: Extract<DesignAction, { type: "addEdge" }>): C
     target: action.target,
     sourceHandle: null,
     targetHandle: null,
-    data: { label: action.label ?? "" },
+    data: {
+      semanticType: "unclassified",
+      name: action.label ?? "",
+      status: "draft",
+      tags: [],
+      sourceRefs: [],
+      assumptions: [],
+      decisionRefs: [],
+      owner: null,
+      ...mirrorEdgeLabelData(labelItems),
+    },
     markerEnd: {
       type: "arrowclosed",
       color: "rgba(255,255,255,0.4)",

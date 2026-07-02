@@ -3,10 +3,10 @@
 Update this file whenever the current phase, active feature, or implementation state changes.
 
 ## Current Phase
-- Self-Owned Infrastructure Foundation
+- Semantic Canvas Foundation
 
 ## Current Goal
-- Stabilize the self-owned runtime foundation, harden production deployment paths, and polish collaboration and canvas editing reliability while preserving the product experience.
+- Establish Arc Forge v1 as a semantic architect and instruction generator, not an app builder, by adding versioned semantic canvas metadata, validation, CanvasDoc compatibility, and Design IR foundations while preserving the existing collaborative canvas experience.
 
 ## Completed
 
@@ -50,13 +50,15 @@ The numbered feature notes below are historical implementation notes. They descr
 - Provider-Agnostic Artifact Storage: direct artifact reads/writes now go through a storage provider contract. Local development defaults to filesystem storage under `.local-storage`; Vercel Blob remains optional behind the provider. Canvas snapshots and generated specs keep PostgreSQL metadata references while large content stays outside the database.
 - Provider-Agnostic AI Runtime: AI design and spec generation run through a server-side provider contract. Local development defaults to deterministic mock AI with no external key, while Google Gemini and OpenAI-compatible providers remain selectable through environment configuration.
 - Account Verification and Recovery: internal auth now includes a My Account page, email verification, forgot/reset password, logged-in password change, single-use hashed verification/reset tokens, local console email delivery, and production SMTP support.
+- Semantic Canvas Foundation: canvas nodes and edges now normalize to versioned semantic taxonomy metadata, legacy items remain unclassified until explicitly classified, service/database/worker/auth-module semantic templates are available, selected items expose a semantic property inspector, advisory validation warnings identify missing technical meaning, edge labelItems mirror label/labels compatibility, transient UI state is stripped from durable canvas data, CanvasDoc v1 compatibility helpers are defined, a deterministic Design IR v1 draft compiler is available for future instruction generation, and internal AI/realtime publisher IDs use neutral Arc Forge naming.
 
 ## In Progress
 
-- Canvas Interaction UX — improve rectangle selection, group move/delete, node and edge label affordances, edge reconnect, and visible canvas controls help while keeping React Flow as the renderer and selection state local-only.
-- Foundation stabilization and production hardening — verify the internal auth, account recovery, AI task runner, realtime, storage, and AI provider foundation under realistic local workflows, then tighten deployment guidance and operational edge cases.
+- Semantic canvas validation and product smoke coverage — verify semantic metadata persistence, local-only UI state, advisory warnings, existing edge/node interactions, AI sidebar flows, and protected access behavior under realistic local workflows.
+- Foundation stabilization and production hardening — keep verifying the internal auth, account recovery, AI task runner, realtime, storage, and AI provider foundation under realistic local workflows, then tighten deployment guidance and operational edge cases.
 
 ## Next Up
+- Design IR expansion, prompt-pack preparation, and semantic compiler coverage for technical specs, API contracts, and external coding-agent instruction packs.
 - Realtime collaboration stabilization, including conflict handling, reconnection polish, event replay strategy, and production reverse-proxy guidance.
 
 

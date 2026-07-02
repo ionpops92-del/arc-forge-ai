@@ -99,6 +99,12 @@ React Flow `<Background>` component. Canvas sits on the base background color.
 - Edge labels must expose a persistent `+` bubble on the edge, support multiple label bubbles, and keep `data.label` mirrored to the first label for compatibility.
 - Existing edges can be reconnected by dragging an endpoint to another compatible node handle.
 - Canvas controls include a compact help popover that explains selection, panning, labels, reconnecting, and saving.
+- Semantic templates appear alongside shape templates for service, database, worker, and auth-module nodes.
+- Nodes show a compact semantic type badge; unclassified nodes use warning styling.
+- Selected nodes and edges expose a local property inspector for semantic type, common metadata, and S1 type-specific fields.
+- Edge semantic type is edited from the inspector and may show a compact badge only during active edge interaction.
+- Semantic warnings are advisory and do not block saving.
+- Subcanvas-capable nodes can show subcanvasRef readiness metadata, but drill-down navigation is not active yet.
 
 ## Component Library
 
