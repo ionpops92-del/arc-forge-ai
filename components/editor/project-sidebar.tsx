@@ -36,7 +36,7 @@ export function ProjectSidebar({
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-bg-base/70 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-bg-base/90 backdrop-blur-md lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -44,12 +44,18 @@ export function ProjectSidebar({
 
       <aside
         className={cn(
-          "fixed inset-y-3 left-3 top-[3.75rem] z-50 flex w-72 flex-col rounded-2xl border border-border-subtle bg-bg-surface/95 backdrop-blur-xl transition-transform duration-200",
+          "fixed inset-y-3 left-3 top-[3.75rem] z-50 flex w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-3xl border border-border-subtle bg-bg-surface/95 shadow-[0_0_48px_var(--color-accent-primary-dim)] backdrop-blur-xl transition-transform duration-300 sm:w-80 lg:w-72",
           isOpen ? "translate-x-0" : "-translate-x-[calc(100%+1rem)]"
         )}
       >
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-border-default px-4">
-          <span className="text-sm font-medium text-text-primary">Projects</span>
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-accent-primary/40" />
+        <div className="pointer-events-none absolute left-4 right-4 top-0 h-px bg-accent-primary/50" />
+
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border-default px-4">
+          <div>
+            <span className="text-sm font-semibold text-text-primary">Projects</span>
+            <p className="text-[10px] uppercase tracking-normal text-text-faint">Navigation deck</p>
+          </div>
           <Button variant="ghost" size="icon-sm" onClick={onClose}>
             <X className="h-4 w-4" />
             <span className="sr-only">Close sidebar</span>

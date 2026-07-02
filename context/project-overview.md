@@ -2,16 +2,16 @@
 
 ## Overview
 
-Arc Forge AI is a real-time collaborative system design workspace. Users describe a system in plain English, an AI architect maps that system onto a shared canvas, collaborators refine the architecture, and the app generates a technical specification from the resulting graph.
+Arc Forge v1 is a semantic architect and instruction generator, not an app builder. Users capture application architecture intent on a shared React Flow canvas; the product normalizes that graph into semantic canvas data and prepares a canonical Design IR foundation for later implementation instructions, prompt packs, technical specs, API contracts, and checklists for external coding agents.
 
 ## Goals
 
 1. Let authenticated users create and manage architecture projects.
-2. Provide a collaborative real-time canvas for system design.
+2. Provide a collaborative real-time semantic canvas for system design.
 3. Let users import prebuilt starter system designs into the canvas.
 4. Let AI generate an initial architecture from a natural language prompt.
-5. Let collaborators refine the generated architecture.
-6. Convert the final graph into a persistent Markdown technical spec.
+5. Let collaborators refine the generated architecture and attach semantic metadata.
+6. Convert the final graph into durable architecture artifacts such as Markdown technical specs, with Design IR prepared for future instruction generation.
 
 ## Core User Flow
 
@@ -21,7 +21,7 @@ Arc Forge AI is a real-time collaborative system design workspace. Users describ
 4. User optionally imports a starter system design template into the canvas.
 5. User prompts the AI to generate or extend the system design.
 6. AI generates nodes and edges in the shared canvas.
-7. Collaborators edit and refine the design.
+7. Collaborators edit, classify, and refine the design.
 8. User triggers spec generation.
 9. App persists the generated Markdown spec.
 10. User reviews or downloads the spec.
@@ -41,6 +41,9 @@ Arc Forge AI is a real-time collaborative system design workspace. Users describ
 - Shared real-time canvas using the internal WebSocket collaboration engine and React Flow.
 - Internal realtime provides authenticated room tokens, presence, chat/status events, and canvas synchronization.
 - Live cursors, presence indicators, and node/edge editing.
+- Semantic node and edge metadata with validation warnings for unclassified or incomplete technical meaning.
+- Semantic templates for service, database, worker, and auth-module nodes.
+- CanvasDoc v1 and Design IR v1 type foundations for future compiler and prompt-pack work.
 - Canvas snapshots persisted through the configured artifact storage provider.
 
 ### Starter System Designs
@@ -86,6 +89,7 @@ Arc Forge AI is a real-time collaborative system design workspace. Users describ
 - Versioned spec history and review workflows
 - Advanced artifact retention/versioning policies
 - Mobile-native applications
+- In-app code generation, repository write-back, branch automation, pull request automation, sandbox execution, and autonomous app building
 
 ## Success Criteria
 

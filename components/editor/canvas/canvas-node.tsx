@@ -5,7 +5,7 @@ import { Handle, Position, NodeResizer, NodeToolbar } from "@xyflow/react"
 import type { NodeProps } from "@xyflow/react"
 import { PencilLine, Plus, Trash2 } from "lucide-react"
 import type { CanvasNode, NodeShape } from "@/types/canvas"
-import { NODE_COLORS } from "@/types/canvas"
+import { NODE_COLORS, semanticNodeTypeLabel } from "@/types/canvas"
 import { useCanvasMutations } from "@/components/editor/canvas/canvas-mutation-context"
 
 const DEFAULT_FILL = NODE_COLORS[0].fill
@@ -131,6 +131,7 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
   const fill = data.color ?? DEFAULT_FILL
   const textColor = data.textColor ?? DEFAULT_TEXT
   const shape = data.shape ?? "rectangle"
+  const semanticType = data.semanticType ?? "unclassified"
   const stroke = selected ? BORDER_SELECTED : BORDER_REST
   const isSvg = shape === "diamond" || shape === "hexagon" || shape === "cylinder"
   const hasLabel = Boolean(data.label?.trim())
@@ -141,7 +142,7 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
   const { deleteNode, updateNodeData } = useCanvasMutations()
 
   const updateNodeLabel = useCallback((newLabel: string) => {
-    updateNodeData(id, { label: newLabel })
+    updateNodeData(id, { label: newLabel, name: newLabel })
   }, [id, updateNodeData])
 
   const updateNodeColor = useCallback((colorFill: string, colorText: string) => {
@@ -269,6 +270,18 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
           </button>
         </div>
       </NodeToolbar>
+
+      <div
+        className={
+          "pointer-events-none absolute left-1.5 top-1.5 z-20 max-w-[calc(100%-12px)] truncate rounded-full border px-1.5 py-0.5 text-[9px] font-medium uppercase leading-none tracking-normal " +
+          (semanticType === "unclassified"
+            ? "border-state-warning/40 bg-bg-surface/85 text-state-warning"
+            : "border-accent-primary/35 bg-bg-surface/85 text-accent-primary")
+        }
+        title={semanticNodeTypeLabel(semanticType)}
+      >
+        {semanticNodeTypeLabel(semanticType)}
+      </div>
 
       {isSvg ? (
         <>

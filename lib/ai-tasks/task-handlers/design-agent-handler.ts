@@ -7,7 +7,7 @@ import { AI_ASSISTANT_NAME } from "@/lib/branding"
 import type { JsonValue } from "@/lib/realtime/types"
 import type { CanvasEdge, CanvasNode } from "@/types/canvas"
 
-const AI_USER_ID = "ghost-ai"
+const AI_USER_ID = "arc-forge-ai"
 
 export const DesignAgentPayloadSchema = z.object({
   prompt: z.string().trim().min(1),

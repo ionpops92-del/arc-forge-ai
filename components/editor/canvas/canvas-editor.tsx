@@ -14,12 +14,13 @@ import {
 import "@xyflow/react/dist/style.css"
 import { useReactFlow } from "@xyflow/react"
 import type { Connection, EdgeChange, NodeChange, OnReconnect } from "@xyflow/react"
-import type { CanvasNode, CanvasEdge, NodeShape } from "@/types/canvas"
+import type { CanvasNode, CanvasEdge, CanvasNodeData, NodeShape } from "@/types/canvas"
 import { NODE_COLORS } from "@/types/canvas"
 import { CanvasNodeComponent } from "@/components/editor/canvas/canvas-node"
 import { CanvasEdgeComponent } from "@/components/editor/canvas/canvas-edge"
 import { ShapePanel } from "@/components/editor/canvas/shape-panel"
 import { CanvasControls } from "@/components/editor/canvas/canvas-controls"
+import { SemanticInspector } from "@/components/editor/canvas/semantic-inspector"
 import { PresenceCursors } from "@/components/editor/canvas/presence-cursors"
 import { CollaboratorAvatars } from "@/components/editor/canvas/collaborator-avatars"
 import { CanvasMutationProvider } from "@/components/editor/canvas/canvas-mutation-context"
@@ -30,6 +31,8 @@ import { useRealtimeRoom } from "@/hooks/use-realtime-room"
 import { getUserColor } from "@/lib/user-color"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import type { CanvasSnapshot } from "@/lib/canvas/canvas-state"
+import { validateCanvasSemantics } from "@/lib/canvas/semantic-validation"
+import { baseNodeData } from "@/lib/canvas/semantic-defaults"
 
 const nodeTypes = { canvasNode: CanvasNodeComponent }
 const edgeTypes = { canvasEdge: CanvasEdgeComponent }
@@ -68,6 +71,13 @@ interface SelectionBoxBounds {
   top: number
   width: number
   height: number
+}
+
+interface CanvasDragPayload {
+  shape: NodeShape
+  size: { width: number; height: number }
+  data?: Partial<CanvasNodeData>
+  idPrefix?: string
 }
 
 function isNodeSelectionChange(
@@ -244,6 +254,23 @@ export function CanvasEditor({
         return { ...edge, selected }
       }),
     [edges, selectedEdgeIds]
+  )
+
+  const selectedNode = useMemo(() => {
+    if (selectedNodeIds.size !== 1 || selectedEdgeIds.size > 0) return null
+    const [nodeId] = [...selectedNodeIds]
+    return nodes.find((node) => node.id === nodeId) ?? null
+  }, [nodes, selectedEdgeIds.size, selectedNodeIds])
+
+  const selectedEdge = useMemo(() => {
+    if (selectedEdgeIds.size !== 1 || selectedNodeIds.size > 0) return null
+    const [edgeId] = [...selectedEdgeIds]
+    return edges.find((edge) => edge.id === edgeId) ?? null
+  }, [edges, selectedEdgeIds, selectedNodeIds.size])
+
+  const semanticWarnings = useMemo(
+    () => validateCanvasSemantics({ nodes, edges }),
+    [edges, nodes]
   )
 
   const publishCanvas = useCallback(
@@ -669,7 +696,19 @@ export function CanvasEditor({
         sourceHandle: connection.sourceHandle ?? null,
         targetHandle: connection.targetHandle ?? null,
         type: "canvasEdge",
-        data: { label: "", labels: [] },
+        data: {
+          semanticType: "unclassified",
+          name: "",
+          label: "",
+          labels: [],
+          labelItems: [],
+          status: "draft",
+          tags: [],
+          sourceRefs: [],
+          assumptions: [],
+          decisionRefs: [],
+          owner: null,
+        },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           color: "rgba(255,255,255,0.4)",
@@ -715,7 +754,7 @@ export function CanvasEditor({
       const raw = event.dataTransfer.getData("application/arc-forge-shape")
       if (!raw) return
 
-      let payload: { shape: NodeShape; size: { width: number; height: number } }
+      let payload: CanvasDragPayload
       try {
         payload = JSON.parse(raw) as typeof payload
       } catch {
@@ -729,14 +768,15 @@ export function CanvasEditor({
       }
 
       const newNode: CanvasNode = {
-        id: generateNodeId(payload.shape),
+        id: generateNodeId(payload.idPrefix ?? payload.shape),
         type: "canvasNode",
         position,
         data: {
-          label: "",
+          ...baseNodeData(),
           color: NODE_COLORS[0].fill,
           textColor: NODE_COLORS[0].text,
           shape: payload.shape,
+          ...(payload.data ?? {}),
         },
         width: payload.size.width,
         height: payload.size.height,
@@ -865,6 +905,11 @@ export function CanvasEditor({
           canRedo={canRedo}
         />
         <ShapePanel />
+        <SemanticInspector
+          selectedNode={selectedNode}
+          selectedEdge={selectedEdge}
+          warnings={semanticWarnings}
+        />
         <PresenceCursors />
         <CollaboratorAvatars />
         <ConnectionStatus status={realtimeStatus} />

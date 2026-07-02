@@ -30,7 +30,7 @@ import { verifyRealtimeTokenProjectAccess } from "@/lib/realtime/access"
 import { WebSocketServer, type RawData, type WebSocket } from "ws"
 
 const DEFAULT_REALTIME_PORT = 3001
-const INTERNAL_PUBLISH_USER_ID = "ghost-ai"
+const INTERNAL_PUBLISH_USER_ID = "arc-forge-ai"
 
 const InternalBroadcastSchema = z.object({
   projectId: z.string().trim().min(1).max(100),

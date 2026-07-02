@@ -1,6 +1,8 @@
 import { MarkerType } from "@xyflow/react"
 import type { CanvasNode, CanvasEdge, NodeShape } from "@/types/canvas"
 import { NODE_COLORS, SHAPE_DEFAULTS } from "@/types/canvas"
+import { baseNodeData } from "@/lib/canvas/semantic-defaults"
+import { createEdgeLabelItems, mirrorEdgeLabelData } from "@/lib/canvas/edge-labels"
 
 export interface CanvasTemplate {
   id: string
@@ -27,7 +29,12 @@ function n(
     id,
     type: "canvasNode",
     position: { x, y },
-    data: { label, color: C[colorIdx].fill, textColor: C[colorIdx].text, shape },
+    data: {
+      ...baseNodeData(label),
+      color: C[colorIdx].fill,
+      textColor: C[colorIdx].text,
+      shape,
+    },
     width: w ?? def.width,
     height: h ?? def.height,
   }
@@ -41,12 +48,24 @@ const MARKER_END = {
 } as const
 
 function e(id: string, source: string, target: string): CanvasEdge {
+  const labelItems = createEdgeLabelItems([], [], `${id}-label`)
+
   return {
     id,
     type: "canvasEdge",
     source,
     target,
-    data: { label: "" },
+    data: {
+      semanticType: "unclassified",
+      name: "",
+      status: "draft",
+      tags: [],
+      sourceRefs: [],
+      assumptions: [],
+      decisionRefs: [],
+      owner: null,
+      ...mirrorEdgeLabelData(labelItems),
+    },
     markerEnd: MARKER_END,
   }
 }
