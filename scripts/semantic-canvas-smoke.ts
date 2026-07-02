@@ -304,7 +304,7 @@ assert(
   "multi-doc IR did not include root and child graph ids"
 )
 assert(
-  multiIrA.apis.some((node) => node.id === endpointNode.id),
+  multiIrA.endpoints.some((node) => node.id === endpointNode.id),
   "endpoint node missing from multi-doc IR"
 )
 assert(

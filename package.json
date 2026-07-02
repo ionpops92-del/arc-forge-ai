@@ -24,6 +24,7 @@
     "test:storage": "tsx scripts/storage-smoke.ts",
     "test:ai-providers": "tsx scripts/ai-provider-smoke.ts",
     "test:semantic-canvas": "tsx scripts/semantic-canvas-smoke.ts",
+    "test:design-ir": "tsx scripts/design-ir-smoke.ts",
     "db:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

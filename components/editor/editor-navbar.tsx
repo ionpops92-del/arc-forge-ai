@@ -1,6 +1,14 @@
 "use client"
 
-import { LayoutTemplate, PanelLeftClose, PanelLeftOpen, Save, Share2, Sparkles } from "lucide-react"
+import {
+  FileJson,
+  LayoutTemplate,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Save,
+  Share2,
+  Sparkles,
+} from "lucide-react"
 import { UserMenu } from "@/components/auth/user-menu"
 import { Button } from "@/components/ui/button"
 import type { SaveStatus } from "@/hooks/use-canvas-autosave"
@@ -13,6 +21,7 @@ interface EditorNavbarProps {
   onToggleAiSidebar?: () => void
   onOpenShareDialog?: () => void
   onOpenTemplates?: () => void
+  onOpenDesignIr?: () => void
   saveStatus?: SaveStatus
   onSave?: () => void
 }
@@ -25,6 +34,7 @@ export function EditorNavbar({
   onToggleAiSidebar,
   onOpenShareDialog,
   onOpenTemplates,
+  onOpenDesignIr,
   saveStatus,
   onSave,
 }: EditorNavbarProps) {
@@ -48,7 +58,7 @@ export function EditorNavbar({
         ) : null}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         {onToggleAiSidebar ? (
           <>
             {onSave ? (
@@ -94,6 +104,18 @@ export function EditorNavbar({
               >
                 <Share2 className="h-4 w-4" />
                 <span className="hidden sm:inline">Share</span>
+              </Button>
+            ) : null}
+            {onOpenDesignIr ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-0 px-2 sm:gap-2 sm:px-3"
+                onClick={onOpenDesignIr}
+                aria-label="Open Design IR"
+              >
+                <FileJson className="h-4 w-4" />
+                <span className="hidden sm:inline">Design IR</span>
               </Button>
             ) : null}
             <Button
