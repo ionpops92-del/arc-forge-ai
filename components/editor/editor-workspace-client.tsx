@@ -12,6 +12,7 @@ import { CanvasRoom } from "@/components/editor/canvas/canvas-room"
 import { useProjectActions, type ProjectRow } from "@/hooks/use-project-actions"
 import type { CanvasTemplate } from "@/components/editor/starter-templates"
 import { InternalRealtimeProvider } from "@/hooks/use-realtime-room"
+import { cn } from "@/lib/utils"
 
 interface EditorWorkspaceClientProps {
   currentProject: ProjectRow
@@ -53,7 +54,13 @@ export function EditorWorkspaceClient({
             onSave={() => saveFnRef.current()}
           />
 
-          <main className="relative min-h-0 flex-1 overflow-hidden">
+          <main
+            className={cn(
+              "relative min-h-0 flex-1 overflow-hidden transition-[padding] duration-300 ease-out",
+              sidebarOpen && "lg:pl-[19.75rem]",
+              aiSidebarOpen && "lg:pr-[22rem]"
+            )}
+          >
             <CanvasRoom
               projectId={currentProject.id}
               pendingTemplate={pendingTemplate}

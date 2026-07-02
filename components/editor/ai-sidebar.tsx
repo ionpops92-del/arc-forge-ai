@@ -456,7 +456,7 @@ export function AiSidebar({ isOpen, onClose, roomId, projectId }: AiSidebarProps
 
     <aside
       className={cn(
-        "fixed inset-y-3 right-3 top-15 z-40 hidden w-84 flex-col rounded-3xl border border-border-subtle bg-bg-surface/95 backdrop-blur-xl transition-transform duration-200 md:flex",
+        "fixed inset-y-3 right-3 top-15 z-40 hidden w-84 flex-col rounded-3xl border border-border-subtle bg-bg-surface/95 shadow-xl ring-1 ring-accent-ai/10 backdrop-blur-xl transition-transform duration-300 lg:flex",
         isOpen ? "translate-x-0" : "translate-x-[calc(100%+1rem)]"
       )}
     >
